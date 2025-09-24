@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# PunchCard Backend Run Script
+# This script builds and runs the Go backend server
+
+set -e  # Exit on any error
+
+echo "🚀 Starting PunchCard Backend..."
+
+# Check if Go is installed
+if ! command -v go &> /dev/null; then
+    echo "❌ Error: Go is not installed or not in PATH"
+    echo "Please install Go 1.24.0 or later from https://golang.org/dl/"
+    exit 1
+fi
+
+# Check Go version
+GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
+REQUIRED_VERSION="1.24.0"
+
+if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$GO_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]; then
+    echo "❌ Error: Go version $GO_VERSION is too old"
+    echo "Please upgrade to Go 1.24.0 or later"
+    exit 1
+fi
+
+echo "✅ Go version: $GO_VERSION"
+
+# Install dependencies
+echo "📦 Installing dependencies..."
+go mod tidy
+
+# Build the application
+echo "🔨 Building application..."
+go build -o punchcard-backend .
+
+if [ $? -eq 0 ]; then
+    echo "✅ Build successful!"
+else
+    echo "❌ Build failed!"
+    exit 1
+fi
+
+# Check if port is already in use
+PORT=${PORT:-8080}
+if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo "⚠️  Warning: Port $PORT is already in use"
+    echo "   You may need to stop the existing process or use a different port"
+    echo "   Set PORT environment variable to use a different port: PORT=8081 ./run"
+fi
+
+# Run the application
+echo "🌟 Starting server on port $PORT..."
+echo "   Health check: http://localhost:$PORT/health"
+echo "   API docs: http://localhost:$PORT/api/users"
+echo ""
+echo "Press Ctrl+C to stop the server"
+echo "----------------------------------------"
+
+./punchcard-backend

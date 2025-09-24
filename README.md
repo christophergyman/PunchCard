@@ -24,6 +24,14 @@ PunchCard/
 - Git
 
 ### Installation & Running
+
+#### Quick Start (Recommended)
+```bash
+cd backend
+./run
+```
+
+#### Manual Setup
 1. Navigate to the backend directory:
    ```bash
    cd backend
@@ -44,7 +52,14 @@ PunchCard/
    ./punchcard-backend
    ```
 
-The server will start on port 8080 by default. You can set the `PORT` environment variable to use a different port.
+#### Cross-Platform Support
+- **Linux/macOS**: Use `./run`
+- **Windows**: Use `run.bat`
+
+The server will start on port 8080 by default. You can set the `PORT` environment variable to use a different port:
+```bash
+PORT=8081 ./run
+```
 
 ### API Endpoints
 
