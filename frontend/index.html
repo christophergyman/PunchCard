@@ -4,11 +4,25 @@
     <meta charset="utf-8">
     <title>My first three.js app</title>
     <style>
-      body { margin: 0; }
+      body { 
+        margin: 0; 
+        padding: 0;
+        overflow: hidden;
+      }
+      #game-container {
+        padding: 10px;
+        box-sizing: border-box;
+        width: 100vw;
+        height: 100vh;
+      }
+      canvas {
+        display: block;
+      }
     </style>
   </head>
   <body>
+    <div id="game-container"></div>
     <script type="module" src="/main.js"></script>
-    <h1>Hello world.</h1>
+    <h1>Punchard.</h1>
   </body>
 </html>
