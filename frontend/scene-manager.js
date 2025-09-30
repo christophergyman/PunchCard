@@ -15,40 +15,13 @@ class SceneManager {
 
     // Setup predefined scenes
     setupDefaultScenes() {
-        // Scene 1: Basic Demo
-        this.scenes.set('demo', {
-            name: 'Demo Scene',
-            description: 'Basic scene with rotating cubes and spheres',
-            load: () => this.loadDemoScene()
-        });
-
-        // Scene 2: Cube Field
-        this.scenes.set('cubeField', {
-            name: 'Cube Field',
-            description: 'Large field of cubes',
-            load: () => this.loadCubeFieldScene()
-        });
-
-        // Scene 3: Spinning World
-        this.scenes.set('spinningWorld', {
-            name: 'Spinning World',
-            description: 'World full of spinning objects',
-            load: () => this.loadSpinningWorldScene()
-        });
-
-        // Scene 4: Performance Test
-        this.scenes.set('performanceTest', {
-            name: 'Performance Test',
-            description: 'Stress test with many objects',
-            load: () => this.loadPerformanceTestScene()
-        });
-
-        // Scene 5: Empty Scene
-        this.scenes.set('empty', {
-            name: 'Empty Scene',
-            description: 'Clean scene with just ground',
-            load: () => this.loadEmptyScene()
-        });
+        // Add your custom scenes here
+        // Example:
+        // this.scenes.set('myScene', {
+        //     name: 'My Scene',
+        //     description: 'My custom scene',
+        //     load: () => this.loadMyScene()
+        // });
     }
 
     // Load a specific scene (optimized with caching)
@@ -154,110 +127,14 @@ class SceneManager {
         return null;
     }
 
-    // === SCENE DEFINITIONS ===
-
-    loadDemoScene() {
-        // Ground plane
-        this.addToCurrentScene(
-            this.game.addPlane(0, -1, 0, 0x888888, 20, 20)
-        );
-
-        // Rotating cubes in a circle
-        for (let i = 0; i < 8; i++) {
-            const angle = (i / 8) * Math.PI * 2;
-            const x = Math.cos(angle) * 3;
-            const z = Math.sin(angle) * 3;
-            const color = new THREE.Color().setHSL(i / 8, 0.7, 0.5).getHex();
-            this.addToCurrentScene(
-                this.game.addRotatingCube(x, 0, z, color, 0.5, 0.02)
-            );
-        }
-
-        // Some spheres
-        this.addToCurrentScene(this.game.addSphere(0, 2, 0, 0xff0000, 0.3));
-        this.addToCurrentScene(this.game.addSphere(2, 1, 2, 0x0000ff, 0.4));
-        this.addToCurrentScene(this.game.addSphere(-2, 1, -2, 0xffff00, 0.4));
-    }
-
-    loadCubeFieldScene() {
-        // Ground plane
-        this.addToCurrentScene(
-            this.game.addPlane(0, -1, 0, 0x666666, 50, 50)
-        );
-
-        // Large field of cubes
-        const cubeField = this.game.addCubeField(100, 2, 0x00ff00, 0.8);
-        cubeField.forEach(cube => this.addToCurrentScene(cube));
-
-        // Add some variety
-        for (let i = 0; i < 20; i++) {
-            const x = (Math.random() - 0.5) * 40;
-            const z = (Math.random() - 0.5) * 40;
-            const color = Math.random() * 0xffffff;
-            this.addToCurrentScene(
-                this.game.addCube(x, 0, z, color, Math.random() * 0.5 + 0.5)
-            );
-        }
-    }
-
-    loadSpinningWorldScene() {
-        // Ground plane
-        this.addToCurrentScene(
-            this.game.addPlane(0, -1, 0, 0x444444, 30, 30)
-        );
-
-        // Spinning cubes in various patterns
-        const patterns = [
-            // Circle pattern
-            { positions: this.createCirclePositions(8, 5), colors: this.createRainbowColors(8) },
-            // Grid pattern
-            { positions: this.createGridPositions(5, 5, 2), colors: this.createRandomColors(25) },
-            // Random scattered
-            { positions: this.createRandomPositions(15, 10), colors: this.createRandomColors(15) }
-        ];
-
-        patterns.forEach(pattern => {
-            pattern.positions.forEach((pos, i) => {
-                const color = pattern.colors[i];
-                this.addToCurrentScene(
-                    this.game.addRotatingCube(pos[0], pos[1], pos[2], color, 0.6, 0.03)
-                );
-            });
-        });
-    }
-
-    loadPerformanceTestScene() {
-        // Ground plane
-        this.addToCurrentScene(
-            this.game.addPlane(0, -1, 0, 0x333333, 100, 100)
-        );
-
-        // Performance test with many objects
-        console.log('Creating performance test scene...');
-        
-        // Create large cube field
-        const cubeField = this.game.addCubeField(500, 1, 0x00ff00, 0.3);
-        cubeField.forEach(cube => this.addToCurrentScene(cube));
-
-        // Add some moving objects
-        for (let i = 0; i < 50; i++) {
-            const x = (Math.random() - 0.5) * 80;
-            const z = (Math.random() - 0.5) * 80;
-            const color = Math.random() * 0xffffff;
-            this.addToCurrentScene(
-                this.game.addMovingCube(x, 0, z, color, 0.4, 0.01)
-            );
-        }
-
-        console.log('Performance test scene created!');
-    }
-
-    loadEmptyScene() {
-        // Just a ground plane
-        this.addToCurrentScene(
-            this.game.addPlane(0, -1, 0, 0x888888, 20, 20)
-        );
-    }
+    // === CUSTOM SCENE DEFINITIONS ===
+    // Add your custom scene loading methods here
+    
+    // Example scene loading method:
+    // loadMyScene() {
+    //     // Add your scene entities here
+    //     this.addToCurrentScene(this.game.addCube(0, 0, 0, 0xff0000, 1));
+    // }
 
     // === HELPER METHODS ===
 
@@ -398,7 +275,8 @@ class SceneManager {
 
     // Check if scene is large (needs lazy loading)
     isLargeScene(sceneName) {
-        const largeScenes = ['performanceTest', 'cubeField'];
+        // Add your large scene names here
+        const largeScenes = []; // Add scene names that need lazy loading
         return largeScenes.includes(sceneName);
     }
 
@@ -409,75 +287,33 @@ class SceneManager {
         // Load basic scene first
         this.loadScene(sceneName);
         
-        // Load additional content in chunks
-        if (sceneName === 'performanceTest') {
-            this.loadPerformanceTestLazy();
-        } else if (sceneName === 'cubeField') {
-            this.loadCubeFieldLazy();
-        }
+        // Add your custom lazy loading logic here
+        // Example:
+        // if (sceneName === 'myLargeScene') {
+        //     this.loadMySceneLazy();
+        // }
     }
 
-    // Lazy load performance test scene
-    loadPerformanceTestLazy() {
-        // Load in chunks to prevent frame drops
-        const chunkSize = 100;
-        const totalCubes = 500;
-        
-        const loadChunk = (startIndex) => {
-            const endIndex = Math.min(startIndex + chunkSize, totalCubes);
-            const positions = [];
-            
-            for (let i = startIndex; i < endIndex; i++) {
-                const x = (i % 20) * 2 - 20;
-                const z = Math.floor(i / 20) * 2 - 20;
-                positions.push([x, 0, z]);
-            }
-            
-            const chunk = this.game.addBatch('cube', positions.length, positions, 
-                new Array(positions.length).fill(0x00ff00), 
-                new Array(positions.length).fill(0.3));
-            
-            this.batchAddToCurrentScene(chunk);
-            
-            // Load next chunk if not done
-            if (endIndex < totalCubes) {
-                requestAnimationFrame(() => loadChunk(endIndex));
-            }
-        };
-        
-        loadChunk(0);
-    }
-
-    // Lazy load cube field scene
-    loadCubeFieldLazy() {
-        // Load cubes in chunks
-        const chunkSize = 50;
-        const totalCubes = 100;
-        
-        const loadChunk = (startIndex) => {
-            const endIndex = Math.min(startIndex + chunkSize, totalCubes);
-            const positions = [];
-            const colors = [];
-            const sizes = [];
-            
-            for (let i = startIndex; i < endIndex; i++) {
-                const x = (i % 10) * 2 - 10;
-                const z = Math.floor(i / 10) * 2 - 10;
-                positions.push([x, 0, z]);
-                colors.push(0x00ff00);
-                sizes.push(0.8);
-            }
-            
-            const chunk = this.game.addBatch('cube', positions.length, positions, colors, sizes);
-            this.batchAddToCurrentScene(chunk);
-            
-            if (endIndex < totalCubes) {
-                requestAnimationFrame(() => loadChunk(endIndex));
-            }
-        };
-        
-        loadChunk(0);
-    }
+    // === LAZY LOADING HELPERS ===
+    // Add your custom lazy loading methods here
+    
+    // Example lazy loading method:
+    // loadMySceneLazy() {
+    //     // Load your scene in chunks for better performance
+    //     const chunkSize = 50;
+    //     const totalObjects = 200;
+    //     
+    //     const loadChunk = (startIndex) => {
+    //         const endIndex = Math.min(startIndex + chunkSize, totalObjects);
+    //         // Create your objects here
+    //         
+    //         if (endIndex < totalObjects) {
+    //             requestAnimationFrame(() => loadChunk(endIndex));
+    //         }
+    //     };
+    //     
+    //     loadChunk(0);
+    // }
 
     // Get performance metrics for scene management
     getSceneManagerStats() {

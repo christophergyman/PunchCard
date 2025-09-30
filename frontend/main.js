@@ -7,18 +7,14 @@ const game = new GameEngine();
 // Initialize scene manager
 const sceneManager = new SceneManager(game);
 
-// Load default scene
-sceneManager.loadScene('demo');
+// No default scene loaded - add your scenes in scene-manager.js
 
 // === SCENE CONTROLS ===
 // You can use these in the browser console or add UI controls:
 
-// Load different scenes:
-// sceneManager.loadScene('demo');           // Basic demo scene
-// sceneManager.loadScene('cubeField');      // Large cube field
-// sceneManager.loadScene('spinningWorld');  // Spinning objects
-// sceneManager.loadScene('performanceTest'); // Stress test
-// sceneManager.loadScene('empty');          // Clean scene
+// Load your custom scenes:
+// sceneManager.loadScene('myScene');        // Your custom scene
+// sceneManager.loadScene('anotherScene');   // Another custom scene
 
 // Navigate scenes:
 // sceneManager.nextScene();     // Go to next scene
