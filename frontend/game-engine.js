@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
-import { EntityManager, MovementSystem, RotationSystem, RenderSystem, TransformComponent, MeshComponent, RotationComponent } from './ecs.js';
+import { EntityManager, MovementSystem, RotationSystem, RenderSystem, TransformComponent, MeshComponent, RotationComponent, EntityFactory } from './ecs.js';
 
 class GameEngine {
     constructor() {
@@ -22,6 +22,7 @@ class GameEngine {
         
         // ECS
         this.entityManager = new EntityManager();
+        this.entityFactory = null; // Will be initialized after scene setup
         this.lastTime = 0;
         
         this.init();
@@ -67,31 +68,43 @@ class GameEngine {
         this.entityManager.addSystem(new MovementSystem());
         this.entityManager.addSystem(new RotationSystem());
         this.entityManager.addSystem(new RenderSystem(this.scene));
+        
+        // Initialize entity factory
+        this.entityFactory = new EntityFactory(this.entityManager, this.scene);
     }
 
     createCube() {
-        // Create cube using ECS
-        const cubeEntity = this.entityManager.createEntity();
-        
-        // Add components
-        cubeEntity.addComponent(new TransformComponent(0, 0, 0));
-        cubeEntity.addComponent(new MeshComponent(
-            new THREE.BoxGeometry(1, 1, 1),
-            new THREE.MeshLambertMaterial({ color: 0x00ff00 })
-        ));
-        cubeEntity.addComponent(new RotationComponent(0.01));
-        
-        // Setup mesh properties
-        const meshComponent = cubeEntity.getComponent(MeshComponent);
-        meshComponent.mesh.castShadow = true;
-        meshComponent.mesh.receiveShadow = true;
-        this.scene.add(meshComponent.mesh);
+        // Create cube using EntityFactory (much simpler!)
+        const cubeEntity = this.entityFactory.createRotatingCube(0, 0, 0, 0x00ff00, 1, 0.01);
         
         // Store reference for backward compatibility
+        const meshComponent = cubeEntity.getComponent(MeshComponent);
         this.cube = meshComponent.mesh;
+
+        // Example: Add some more objects to demonstrate the factory
+        this.setupExampleScene();
 
         // Add lighting
         this.setupLighting();
+    }
+
+    setupExampleScene() {
+        // Add a ground plane
+        this.entityFactory.createPlane(0, -1, 0, 0x888888, 20, 20);
+        
+        // Add some rotating cubes in a circle
+        for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const x = Math.cos(angle) * 3;
+            const z = Math.sin(angle) * 3;
+            const color = new THREE.Color().setHSL(i / 8, 0.7, 0.5).getHex();
+            this.entityFactory.createRotatingCube(x, 0, z, color, 0.5, 0.02);
+        }
+        
+        // Add some spheres
+        this.entityFactory.createSphere(0, 2, 0, 0xff0000, 0.3);
+        this.entityFactory.createSphere(2, 1, 2, 0x0000ff, 0.4);
+        this.entityFactory.createSphere(-2, 1, -2, 0xffff00, 0.4);
     }
 
     setupLighting() {
@@ -209,6 +222,35 @@ class GameEngine {
         this.entityManager.update(deltaTime);
         
         this.renderer.render(this.scene, this.camera);
+    }
+
+    // Public methods for easy entity creation
+    addCube(x = 0, y = 0, z = 0, color = 0x00ff00, size = 1) {
+        return this.entityFactory.createCube(x, y, z, color, size);
+    }
+
+    addRotatingCube(x = 0, y = 0, z = 0, color = 0x00ff00, size = 1, rotationSpeed = 0.01) {
+        return this.entityFactory.createRotatingCube(x, y, z, color, size, rotationSpeed);
+    }
+
+    addMovingCube(x = 0, y = 0, z = 0, color = 0x00ff00, size = 1, speed = 0.02) {
+        return this.entityFactory.createMovingCube(x, y, z, color, size, speed);
+    }
+
+    addSphere(x = 0, y = 0, z = 0, color = 0xff0000, radius = 0.5) {
+        return this.entityFactory.createSphere(x, y, z, color, radius);
+    }
+
+    addPlane(x = 0, y = 0, z = 0, color = 0x888888, width = 10, height = 10) {
+        return this.entityFactory.createPlane(x, y, z, color, width, height);
+    }
+
+    addCustomEntity(geometry, material, x = 0, y = 0, z = 0) {
+        return this.entityFactory.createEntity(geometry, material, x, y, z);
+    }
+
+    removeEntity(entity) {
+        this.entityFactory.destroyEntity(entity);
     }
 }
 
