@@ -107,6 +107,30 @@ class GameEngine {
         this.entityFactory.createSphere(-2, 1, -2, 0xffff00, 0.4);
     }
 
+    // Add more entities to your world
+    addMoreCubes() {
+        // Add some random cubes
+        for (let i = 0; i < 5; i++) {
+            const x = (Math.random() - 0.5) * 20;
+            const z = (Math.random() - 0.5) * 20;
+            const color = Math.random() * 0xffffff;
+            this.addCube(x, 0, z, color, Math.random() * 0.5 + 0.5);
+        }
+    }
+
+    addMoreSpinningCubes() {
+        // Add spinning cubes in a pattern
+        const positions = [
+            [5, 0, 0], [-5, 0, 0], [0, 0, 5], [0, 0, -5],
+            [3, 1, 3], [-3, 1, -3], [3, 1, -3], [-3, 1, 3]
+        ];
+        
+        positions.forEach((pos, i) => {
+            const color = new THREE.Color().setHSL(i / positions.length, 0.8, 0.6).getHex();
+            this.addRotatingCube(pos[0], pos[1], pos[2], color, 0.8, 0.03);
+        });
+    }
+
     setupLighting() {
         const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
         this.scene.add(ambientLight);
