@@ -1,10 +1,12 @@
 import * as THREE from 'three';
+import { Scene1 } from './scene1/scene1.js';
 
 class SceneManager {
     constructor(gameEngine) {
         this.game = gameEngine;
         this.currentScene = null;
         this.scenes = new Map();
+        this.sceneInstances = new Map(); // Track scene instances
         this.sceneEntities = new Map(); // Track entities per scene
         this.sceneCache = new Map(); // Cache pre-built scenes
         this.preloadedScenes = new Set(); // Track preloaded scenes
@@ -15,12 +17,18 @@ class SceneManager {
 
     // Setup predefined scenes
     setupDefaultScenes() {
-        // Add your custom scenes here
-        // Example:
-        // this.scenes.set('myScene', {
-        //     name: 'My Scene',
-        //     description: 'My custom scene',
-        //     load: () => this.loadMyScene()
+        // Modular scenes - each scene is a separate class
+        this.scenes.set('scene1', {
+            name: 'Scene 1',
+            description: 'Example modular scene with enemies and collectibles',
+            load: () => this.loadModularScene('scene1', Scene1)
+        });
+
+        // Add more modular scenes here:
+        // this.scenes.set('scene2', {
+        //     name: 'Scene 2',
+        //     description: 'Another modular scene',
+        //     load: () => this.loadModularScene('scene2', Scene2)
         // });
     }
 
@@ -57,13 +65,20 @@ class SceneManager {
 
     // Clear current scene (optimized batch removal)
     clearCurrentScene() {
-        if (this.currentScene && this.sceneEntities.has(this.currentScene)) {
-            const entities = this.sceneEntities.get(this.currentScene);
+        if (this.currentScene) {
+            // Clear modular scene if it exists
+            if (this.sceneInstances.has(this.currentScene)) {
+                const sceneInstance = this.sceneInstances.get(this.currentScene);
+                sceneInstance.clear();
+                this.sceneInstances.delete(this.currentScene);
+            }
             
-            // Batch remove entities for better performance
-            this.batchRemoveEntities(entities);
-            
-            this.sceneEntities.delete(this.currentScene);
+            // Clear legacy scene entities
+            if (this.sceneEntities.has(this.currentScene)) {
+                const entities = this.sceneEntities.get(this.currentScene);
+                this.batchRemoveEntities(entities);
+                this.sceneEntities.delete(this.currentScene);
+            }
         }
         this.currentScene = null;
     }
@@ -125,6 +140,24 @@ class SceneManager {
             };
         }
         return null;
+    }
+
+    // === MODULAR SCENE LOADING ===
+    
+    /**
+     * Load a modular scene (separate class file)
+     */
+    loadModularScene(sceneName, SceneClass) {
+        console.log(`Loading modular scene: ${sceneName}`);
+        
+        // Create scene instance
+        const sceneInstance = new SceneClass(this.game);
+        this.sceneInstances.set(sceneName, sceneInstance);
+        
+        // Load the scene
+        sceneInstance.load();
+        
+        console.log(`Modular scene ${sceneName} loaded successfully`);
     }
 
     // === CUSTOM SCENE DEFINITIONS ===

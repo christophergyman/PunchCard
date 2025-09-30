@@ -7,7 +7,8 @@ const game = new GameEngine();
 // Initialize scene manager
 const sceneManager = new SceneManager(game);
 
-// No default scene loaded - add your scenes in scene-manager.js
+// Load the modular scene
+sceneManager.loadScene('scene1');
 
 // === SCENE CONTROLS ===
 // You can use these in the browser console or add UI controls:
