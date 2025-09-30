@@ -252,6 +252,34 @@ class GameEngine {
     removeEntity(entity) {
         this.entityFactory.destroyEntity(entity);
     }
+
+    // HIGH PERFORMANCE: Batch operations for creating many objects
+    addCubeField(count = 100, spacing = 2, color = 0x00ff00, size = 1) {
+        return this.entityFactory.createCubeField(count, spacing, color, size);
+    }
+
+    addInstancedCubes(count, positions, color = 0x00ff00, size = 1) {
+        const geometry = this.entityFactory.geometryPool.getBoxGeometry(size);
+        const material = this.entityFactory.geometryPool.getMaterial(color);
+        return this.entityFactory.createInstancedMesh(geometry, material, count, positions);
+    }
+
+    // HIGH PERFORMANCE: Create many objects in one call
+    addBatch(type, count, positions, colors, sizes) {
+        return this.entityFactory.createBatch(type, count, positions, colors, sizes);
+    }
+
+    // Performance monitoring
+    getPerformanceStats() {
+        return {
+            entityCount: this.entityManager.entities.length,
+            systemCount: this.entityManager.systems.length,
+            renderCalls: this.renderer.info.render.calls,
+            triangles: this.renderer.info.render.triangles,
+            geometries: this.renderer.info.memory.geometries,
+            textures: this.renderer.info.memory.textures
+        };
+    }
 }
 
 export { GameEngine };

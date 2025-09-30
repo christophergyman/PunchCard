@@ -22,6 +22,102 @@ class Vector3Pool {
 // Global vector pool instance
 const vectorPool = new Vector3Pool();
 
+// Geometry and Material pools for performance
+class GeometryPool {
+    constructor() {
+        this.geometries = new Map();
+        this.materials = new Map();
+    }
+
+    getBoxGeometry(size = 1) {
+        const key = `box_${size}`;
+        if (!this.geometries.has(key)) {
+            this.geometries.set(key, new THREE.BoxGeometry(size, size, size));
+        }
+        return this.geometries.get(key);
+    }
+
+    getSphereGeometry(radius = 0.5, segments = 16) {
+        const key = `sphere_${radius}_${segments}`;
+        if (!this.geometries.has(key)) {
+            this.geometries.set(key, new THREE.SphereGeometry(radius, segments, segments));
+        }
+        return this.geometries.get(key);
+    }
+
+    getPlaneGeometry(width = 1, height = 1) {
+        const key = `plane_${width}_${height}`;
+        if (!this.geometries.has(key)) {
+            this.geometries.set(key, new THREE.PlaneGeometry(width, height));
+        }
+        return this.geometries.get(key);
+    }
+
+    getMaterial(color = 0x00ff00) {
+        if (!this.materials.has(color)) {
+            this.materials.set(color, new THREE.MeshLambertMaterial({ color }));
+        }
+        return this.materials.get(color);
+    }
+}
+
+// Global geometry pool
+const geometryPool = new GeometryPool();
+
+// Component pool for reusing components
+class ComponentPool {
+    constructor() {
+        this.transformPool = [];
+        this.movementPool = [];
+        this.rotationPool = [];
+    }
+
+    getTransformComponent(x = 0, y = 0, z = 0) {
+        if (this.transformPool.length > 0) {
+            const component = this.transformPool.pop();
+            component.position.set(x, y, z);
+            component.rotation.set(0, 0, 0);
+            component.scale.set(1, 1, 1);
+            return component;
+        }
+        return new TransformComponent(x, y, z);
+    }
+
+    getMovementComponent(speed = 0.02) {
+        if (this.movementPool.length > 0) {
+            const component = this.movementPool.pop();
+            component.speed = speed;
+            component.velocity.set(0, 0, 0);
+            return component;
+        }
+        return new MovementComponent(speed);
+    }
+
+    getRotationComponent(rotationSpeed = 0.01) {
+        if (this.rotationPool.length > 0) {
+            const component = this.rotationPool.pop();
+            component.rotationSpeed = rotationSpeed;
+            return component;
+        }
+        return new RotationComponent(rotationSpeed);
+    }
+
+    releaseTransformComponent(component) {
+        this.transformPool.push(component);
+    }
+
+    releaseMovementComponent(component) {
+        this.movementPool.push(component);
+    }
+
+    releaseRotationComponent(component) {
+        this.rotationPool.push(component);
+    }
+}
+
+// Global component pool
+const componentPool = new ComponentPool();
+
 // Entity Component System
 class Entity {
     constructor(id) {
@@ -253,18 +349,21 @@ class EntityFactory {
     constructor(entityManager, scene) {
         this.entityManager = entityManager;
         this.scene = scene;
+        this.batchQueue = []; // For batch operations
+        this.instancedMeshes = new Map(); // For instanced rendering
     }
 
-    // Create a basic cube entity
+    // Create a basic cube entity (optimized with pooling)
     createCube(x = 0, y = 0, z = 0, color = 0x00ff00, size = 1) {
         const entity = this.entityManager.createEntity();
         
-        // Add components
-        entity.addComponent(new TransformComponent(x, y, z));
-        entity.addComponent(new MeshComponent(
-            new THREE.BoxGeometry(size, size, size),
-            new THREE.MeshLambertMaterial({ color })
-        ));
+        // Add components using pools
+        entity.addComponent(componentPool.getTransformComponent(x, y, z));
+        
+        // Use pooled geometry and material
+        const geometry = geometryPool.getBoxGeometry(size);
+        const material = geometryPool.getMaterial(color);
+        entity.addComponent(new MeshComponent(geometry, material));
         
         // Setup mesh properties
         const meshComponent = entity.getComponent(MeshComponent);
@@ -275,29 +374,30 @@ class EntityFactory {
         return entity;
     }
 
-    // Create a rotating cube
+    // Create a rotating cube (optimized with pooling)
     createRotatingCube(x = 0, y = 0, z = 0, color = 0x00ff00, size = 1, rotationSpeed = 0.01) {
         const entity = this.createCube(x, y, z, color, size);
-        entity.addComponent(new RotationComponent(rotationSpeed));
+        entity.addComponent(componentPool.getRotationComponent(rotationSpeed));
         return entity;
     }
 
-    // Create a moving cube
+    // Create a moving cube (optimized with pooling)
     createMovingCube(x = 0, y = 0, z = 0, color = 0x00ff00, size = 1, speed = 0.02) {
         const entity = this.createCube(x, y, z, color, size);
-        entity.addComponent(new MovementComponent(speed));
+        entity.addComponent(componentPool.getMovementComponent(speed));
         return entity;
     }
 
-    // Create a sphere
+    // Create a sphere (optimized with pooling)
     createSphere(x = 0, y = 0, z = 0, color = 0xff0000, radius = 0.5) {
         const entity = this.entityManager.createEntity();
         
         entity.addComponent(new TransformComponent(x, y, z));
-        entity.addComponent(new MeshComponent(
-            new THREE.SphereGeometry(radius, 16, 16),
-            new THREE.MeshLambertMaterial({ color })
-        ));
+        
+        // Use pooled geometry and material
+        const geometry = geometryPool.getSphereGeometry(radius, 16);
+        const material = geometryPool.getMaterial(color);
+        entity.addComponent(new MeshComponent(geometry, material));
         
         const meshComponent = entity.getComponent(MeshComponent);
         meshComponent.mesh.castShadow = true;
@@ -307,15 +407,16 @@ class EntityFactory {
         return entity;
     }
 
-    // Create a plane (ground)
+    // Create a plane (ground) - optimized with pooling
     createPlane(x = 0, y = 0, z = 0, color = 0x888888, width = 10, height = 10) {
         const entity = this.entityManager.createEntity();
         
         entity.addComponent(new TransformComponent(x, y, z));
-        entity.addComponent(new MeshComponent(
-            new THREE.PlaneGeometry(width, height),
-            new THREE.MeshLambertMaterial({ color })
-        ));
+        
+        // Use pooled geometry and material
+        const geometry = geometryPool.getPlaneGeometry(width, height);
+        const material = geometryPool.getMaterial(color);
+        entity.addComponent(new MeshComponent(geometry, material));
         
         const meshComponent = entity.getComponent(MeshComponent);
         meshComponent.mesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
@@ -347,6 +448,72 @@ class EntityFactory {
             this.scene.remove(meshComponent.mesh);
         }
         this.entityManager.removeEntity(entity);
+    }
+
+    // HIGH PERFORMANCE: Batch create multiple entities at once
+    createBatch(type, count, positions, colors, sizes) {
+        const entities = [];
+        
+        for (let i = 0; i < count; i++) {
+            const pos = positions[i] || [0, 0, 0];
+            const color = colors[i] || 0x00ff00;
+            const size = sizes[i] || 1;
+            
+            let entity;
+            switch(type) {
+                case 'cube':
+                    entity = this.createCube(pos[0], pos[1], pos[2], color, size);
+                    break;
+                case 'sphere':
+                    entity = this.createSphere(pos[0], pos[1], pos[2], color, size);
+                    break;
+                case 'rotatingCube':
+                    entity = this.createRotatingCube(pos[0], pos[1], pos[2], color, size);
+                    break;
+            }
+            entities.push(entity);
+        }
+        
+        return entities;
+    }
+
+    // HIGH PERFORMANCE: Create instanced mesh for repeated objects
+    createInstancedMesh(geometry, material, count, positions) {
+        const instancedMesh = new THREE.InstancedMesh(geometry, material, count);
+        
+        // Set positions for each instance
+        const matrix = new THREE.Matrix4();
+        for (let i = 0; i < count; i++) {
+            const pos = positions[i];
+            matrix.setPosition(pos[0], pos[1], pos[2]);
+            instancedMesh.setMatrixAt(i, matrix);
+        }
+        
+        instancedMesh.castShadow = true;
+        instancedMesh.receiveShadow = true;
+        this.scene.add(instancedMesh);
+        
+        return instancedMesh;
+    }
+
+    // HIGH PERFORMANCE: Create many cubes efficiently
+    createCubeField(count, spacing = 2, color = 0x00ff00, size = 1) {
+        const positions = [];
+        const colors = [];
+        const sizes = [];
+        
+        const gridSize = Math.ceil(Math.sqrt(count));
+        
+        for (let i = 0; i < count; i++) {
+            const x = (i % gridSize) * spacing - (gridSize * spacing) / 2;
+            const z = Math.floor(i / gridSize) * spacing - (gridSize * spacing) / 2;
+            
+            positions.push([x, 0, z]);
+            colors.push(color);
+            sizes.push(size);
+        }
+        
+        return this.createBatch('cube', count, positions, colors, sizes);
     }
 }
 
