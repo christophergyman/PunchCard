@@ -17,6 +17,8 @@ PunchCard/
 │   ├── game-engine.js  # Core game engine
 │   ├── ecs.js          # Entity Component System
 │   ├── scene-manager.js # Scene management system
+│   ├── models/         # GLB/GLTF model files
+│   ├── scene1/         # Modular scene system
 │   ├── index.html      # Game container
 │   └── package.json    # Dependencies
 └── database/           # SQLite database file
@@ -188,6 +190,23 @@ this.game.addSphere(x, y, z, color, radius)
 this.game.addPlane(x, y, z, color, width, height)
 ```
 
+**GLB/GLTF Models (With Textures and UV Mapping):**
+```javascript
+// Load your custom GLB models
+const character = await this.game.addModel('./models/character.glb', x, y, z);
+this.addEntity(character);
+
+// Add movement to models
+const movingModel = await this.game.addModel('./models/weirdCube.glb', x, y, z);
+movingModel.addComponent(new MovementComponent(0.02));
+this.addEntity(movingModel);
+
+// Add rotation to models
+const spinningModel = await this.game.addModel('./models/table.glb', x, y, z);
+spinningModel.addComponent(new RotationComponent(0.01));
+this.addEntity(spinningModel);
+```
+
 **Colors:**
 ```javascript
 0xff0000  // Red
@@ -205,6 +224,23 @@ this.game.addPlane(x, y, z, color, width, height)
 // Create many cubes at once
 const cubeField = this.game.addCubeField(100, 2, 0x00ff00, 0.8);
 cubeField.forEach(cube => this.addToCurrentScene(cube));
+```
+
+**GLB Models (With Textures and UV Mapping):**
+```javascript
+// Load your custom GLB models
+const character = await this.game.addModel('./models/character.glb', 0, 0, 0);
+this.addEntity(character);
+
+// Add movement to models
+const movingCharacter = await this.game.addModel('./models/character.glb', 5, 0, 0);
+movingCharacter.addComponent(new MovementComponent(0.02));
+this.addEntity(movingCharacter);
+
+// Add rotation to models
+const spinningModel = await this.game.addModel('./models/weirdCube.glb', -5, 0, 0);
+spinningModel.addComponent(new RotationComponent(0.01));
+this.addEntity(spinningModel);
 ```
 
 #### 4. Helper Methods for Patterns
@@ -273,43 +309,97 @@ sceneManager.previousScene(); // Go to previous scene
 3. **Reuse Colors**: Define colors once and reuse them
 4. **Test Performance**: Use `sceneManager.getScenePerformanceStats()` to monitor
 
+### GLB Model Usage Guide
+
+#### **Setting Up Your Models**
+1. **Place GLB files** in `frontend/models/` directory
+2. **Use relative paths** when loading: `'./models/yourModel.glb'`
+3. **Models are cached** automatically for performance
+
+#### **Basic Model Loading**
+```javascript
+async load() {
+    // Load a single model
+    const character = await this.game.addModel('./models/character.glb', 0, 0, 0);
+    this.addEntity(character);
+}
+```
+
+#### **Multiple Model Instances**
+```javascript
+async load() {
+    // Create multiple characters in a circle
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const x = Math.cos(angle) * 10;
+        const z = Math.sin(angle) * 10;
+        
+        const character = await this.game.addModel('./models/character.glb', x, 0, z);
+        this.addEntity(character);
+    }
+}
+```
+
+#### **Models with Movement and Rotation**
+```javascript
+async load() {
+    // Moving model
+    const movingCharacter = await this.game.addModel('./models/character.glb', 0, 0, 10);
+    movingCharacter.addComponent(new MovementComponent(0.02));
+    this.addEntity(movingCharacter);
+    
+    // Spinning model
+    const spinningCube = await this.game.addModel('./models/weirdCube.glb', 5, 0, 0);
+    spinningCube.addComponent(new RotationComponent(0.01));
+    this.addEntity(spinningCube);
+}
+```
+
+#### **What's Supported in GLB Models**
+✅ **Textures** - All texture types (diffuse, normal, roughness, etc.)  
+✅ **UV Mapping** - Preserved from your 3D software  
+✅ **Materials** - PBR, standard, custom materials  
+✅ **Animations** - Model animations (if present)  
+✅ **Shadows** - Automatic shadow casting/receiving  
+✅ **Performance** - Model caching and efficient cloning  
+
 ### Example Complete Scene
 
 ```javascript
-loadMyAwesomeScene() {
+async loadMyAwesomeScene() {
     // Ground
     this.addToCurrentScene(
         this.game.addPlane(0, -1, 0, 0x666666, 30, 30)
     );
     
-    // Player spawn (green cube)
-    this.addToCurrentScene(
-        this.game.addCube(0, 0, 0, 0x00ff00, 1)
-    );
+    // Player spawn (GLB character model)
+    const player = await this.game.addModel('./models/character.glb', 0, 0, 0);
+    this.addEntity(player);
     
-    // Enemies in circle (red spinning cubes)
+    // Enemies in circle (GLB models)
     const enemyPositions = this.createCirclePositions(8, 5);
-    enemyPositions.forEach((pos, i) => {
-        this.addToCurrentScene(
-            this.game.addRotatingCube(pos[0], 0, pos[2], 0xff0000, 0.8, 0.02)
-        );
-    });
+    for (let i = 0; i < enemyPositions.length; i++) {
+        const pos = enemyPositions[i];
+        const enemy = await this.game.addModel('./models/weirdCube.glb', pos[0], 0, pos[2]);
+        enemy.addComponent(new RotationComponent(0.02));
+        this.addEntity(enemy);
+    }
     
-    // Collectibles scattered around (yellow spheres)
-    const collectiblePositions = this.createRandomPositions(15, 8);
-    collectiblePositions.forEach((pos, i) => {
-        this.addToCurrentScene(
-            this.game.addSphere(pos[0], 0.5, pos[2], 0xffff00, 0.3)
-        );
-    });
+    // Furniture scattered around (GLB table models)
+    const furniturePositions = this.createRandomPositions(10, 8);
+    for (let i = 0; i < furniturePositions.length; i++) {
+        const pos = furniturePositions[i];
+        const table = await this.game.addModel('./models/table.glb', pos[0], 0, pos[2]);
+        this.addEntity(table);
+    }
     
-    // Moving obstacles (blue moving cubes)
+    // Moving obstacles (GLB models with movement)
     for (let i = 0; i < 5; i++) {
         const x = (Math.random() - 0.5) * 20;
         const z = (Math.random() - 0.5) * 20;
-        this.addToCurrentScene(
-            this.game.addMovingCube(x, 0, z, 0x0000ff, 0.6, 0.01)
-        );
+        const obstacle = await this.game.addModel('./models/weirdCube.glb', x, 0, z);
+        obstacle.addComponent(new MovementComponent(0.01));
+        this.addEntity(obstacle);
     }
 }
 ```
@@ -325,6 +415,30 @@ loadMyAwesomeScene() {
 - Use batch operations for many objects
 - Enable lazy loading for large scenes
 - Check performance stats in console
+
+**GLB Model Issues:**
+- **Model not loading**: Check file path is correct (`./models/filename.glb`)
+- **Model appears black**: Check if textures are embedded in GLB file
+- **Model too large/small**: Adjust scale using `transform.scale.set(x, y, z)`
+- **Model not responding to lighting**: Ensure materials support lighting
+- **Performance with many models**: Models are automatically cached for reuse
+
+**Model Loading Best Practices:**
+```javascript
+// ✅ Good: Use relative paths
+const model = await this.game.addModel('./models/character.glb', 0, 0, 0);
+
+// ❌ Bad: Absolute paths won't work
+const model = await this.game.addModel('/Users/.../character.glb', 0, 0, 0);
+
+// ✅ Good: Handle loading errors
+try {
+    const model = await this.game.addModel('./models/character.glb', 0, 0, 0);
+    this.addEntity(model);
+} catch (error) {
+    console.error('Failed to load model:', error);
+}
+```
 
 **Objects not appearing?**
 - Check Y position (objects might be underground)

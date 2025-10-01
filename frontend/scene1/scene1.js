@@ -6,9 +6,17 @@ class Scene1 {
         this.entities = [];
     }
 
-    load() {
+    async load() {
         console.log('Loading Scene1...');
         this.clear();
+        
+        // Add your scene content here
+        // Example: Load your GLB models
+        // const character = await this.game.addModel('./models/character.glb', 0, 0, 0);
+        // this.addEntity(character);
+        const table = await this.game.addModel('./models/table.glb', 0, 0, 0);
+        this.addEntity(table);
+        
         console.log(`Scene1 loaded with ${this.entities.length} entities`);
     }
 

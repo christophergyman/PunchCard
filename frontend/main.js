@@ -1,31 +1,44 @@
 import { GameEngine } from './game-engine.js';
-import { SceneManager } from './scene-manager.js';
+import { PhysicsExample } from './physics-example.js';
 
 // Initialize the game
 const game = new GameEngine();
 
-// Initialize scene manager
-const sceneManager = new SceneManager(game);
+// Initialize physics example
+const physicsExample = new PhysicsExample();
 
-// Load the modular scene
-sceneManager.loadScene('scene1');
+// Make physics example globally available for console access
+window.physicsExample = physicsExample;
+window.game = game;
 
-// === SCENE CONTROLS ===
+
+
+// === PHYSICS EXAMPLE CONTROLS ===
 // You can use these in the browser console or add UI controls:
 
-// Load your custom scenes:
-// sceneManager.loadScene('myScene');        // Your custom scene
-// sceneManager.loadScene('anotherScene');   // Another custom scene
+// Physics Example Controls:
+// P - Add random physics object
+// T - Create physics tower
+// D - Create physics dominoes
+// S - Show physics stats
+// C - Toggle camera collision
+// R - Reset camera position
 
-// Navigate scenes:
-// sceneManager.nextScene();     // Go to next scene
-// sceneManager.previousScene(); // Go to previous scene
+// Console commands:
+// physicsExample.addRandomPhysicsObject();  // Add random physics object
+// physicsExample.createPhysicsTower();      // Create physics tower
+// physicsExample.createPhysicsDominoes();   // Create physics dominoes
+// physicsExample.getPhysicsStats();         // Get physics performance stats
 
-// Get scene info:
-// console.log(sceneManager.getAvailableScenes());
-// console.log(sceneManager.getCurrentSceneInfo());
-// console.log(sceneManager.getScenePerformanceStats());
+// Game engine controls:
+// game.addPhysicsCube(x, y, z, color, size, options);     // Add physics cube
+// game.addPhysicsSphere(x, y, z, color, radius, options); // Add physics sphere
+// game.applyForce(entity, force, worldPoint);             // Apply force
+// game.applyImpulse(entity, impulse, worldPoint);        // Apply impulse
 
-// Make scene manager globally available for console access
-window.sceneManager = sceneManager;
-window.game = game;
+// Camera collision controls:
+// game.enableCameraCollision();                           // Enable camera collision
+// game.disableCameraCollision();                          // Disable camera collision
+// game.setCameraCollisionRadius(0.5);                     // Set collision radius
+// game.setCameraCollisionHeight(1.8);                     // Set collision height
+// game.testCameraCollision();                             // Test camera collision debug

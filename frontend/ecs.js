@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { RigidBodyComponent, ColliderComponent, PhysicsMaterialComponent, PhysicsShapeFactory } from './physics.js';
 
 // Object pool for Vector3 reuse to reduce garbage collection
 class Vector3Pool {
@@ -70,6 +72,8 @@ class ComponentPool {
         this.transformPool = [];
         this.movementPool = [];
         this.rotationPool = [];
+        this.rigidBodyPool = [];
+        this.colliderPool = [];
     }
 
     getTransformComponent(x = 0, y = 0, z = 0) {
@@ -113,10 +117,70 @@ class ComponentPool {
     releaseRotationComponent(component) {
         this.rotationPool.push(component);
     }
+
+    getRigidBodyComponent(options = {}) {
+        if (this.rigidBodyPool.length > 0) {
+            const component = this.rigidBodyPool.pop();
+            Object.assign(component, options);
+            return component;
+        }
+        return new RigidBodyComponent(options);
+    }
+
+    getColliderComponent(shape, options = {}) {
+        if (this.colliderPool.length > 0) {
+            const component = this.colliderPool.pop();
+            component.shape = shape;
+            Object.assign(component, options);
+            return component;
+        }
+        return new ColliderComponent(shape, options);
+    }
+
+    releaseRigidBodyComponent(component) {
+        this.rigidBodyPool.push(component);
+    }
+
+    releaseColliderComponent(component) {
+        this.colliderPool.push(component);
+    }
 }
 
 // Global component pool
 const componentPool = new ComponentPool();
+
+// GLB Model loader and cache
+class ModelLoader {
+    constructor() {
+        this.loader = new GLTFLoader();
+        this.cache = new Map();
+    }
+
+    async loadModel(url) {
+        if (this.cache.has(url)) {
+            return this.cache.get(url);
+        }
+
+        try {
+            const gltf = await this.loader.loadAsync(url);
+            this.cache.set(url, gltf);
+            return gltf;
+        } catch (error) {
+            console.error(`Failed to load model: ${url}`, error);
+            return null;
+        }
+    }
+
+    cloneModel(gltf) {
+        if (!gltf) return null;
+        
+        const clonedScene = gltf.scene.clone();
+        return clonedScene;
+    }
+}
+
+// Global model loader
+const modelLoader = new ModelLoader();
 
 // Entity Component System
 class Entity {
@@ -182,6 +246,26 @@ class MeshComponent extends Component {
     constructor(geometry, material) {
         super();
         this.mesh = new THREE.Mesh(geometry, material);
+    }
+}
+
+class ModelComponent extends Component {
+    constructor(modelUrl) {
+        super();
+        this.modelUrl = modelUrl;
+        this.model = null;
+        this.isLoaded = false;
+    }
+
+    async loadModel() {
+        if (this.isLoaded) return this.model;
+        
+        const gltf = await modelLoader.loadModel(this.modelUrl);
+        if (gltf) {
+            this.model = modelLoader.cloneModel(gltf);
+            this.isLoaded = true;
+        }
+        return this.model;
     }
 }
 
@@ -273,10 +357,17 @@ class RenderSystem extends System {
             const entity = this.entities[i];
             const transform = entity.getComponent(TransformComponent);
             const mesh = entity.getComponent(MeshComponent);
+            const model = entity.getComponent(ModelComponent);
             
             if (transform && mesh) {
                 mesh.mesh.position.copy(transform.position);
                 mesh.mesh.scale.copy(transform.scale);
+            }
+            
+            if (transform && model && model.isLoaded) {
+                model.model.position.copy(transform.position);
+                model.model.scale.copy(transform.scale);
+                model.model.rotation.copy(transform.rotation);
             }
         }
     }
@@ -296,6 +387,12 @@ class EntityManager {
         const entity = new Entity(this.nextEntityId++);
         this.entities.push(entity);
         this.entitySet.add(entity);
+        
+        // Add entity to all systems
+        for (let i = 0; i < this.systems.length; i++) {
+            this.systems[i].addEntity(entity);
+        }
+        
         return entity;
     }
 
@@ -307,7 +404,19 @@ class EntityManager {
                 this.entities.splice(index, 1);
             }
             // Remove from all systems
-            this.systems.forEach(system => system.removeEntity(entity));
+            for (let i = 0; i < this.systems.length; i++) {
+                this.systems[i].removeEntity(entity);
+            }
+        }
+    }
+
+    notifyPhysicsComponentsAdded(entity) {
+        // Notify physics system that this entity now has physics components
+        for (let i = 0; i < this.systems.length; i++) {
+            if (this.systems[i].constructor.name === 'PhysicsSystem') {
+                console.log('Notifying physics system about entity with physics components:', entity.id);
+                this.systems[i].addEntity(entity);
+            }
         }
     }
 
@@ -441,12 +550,44 @@ class EntityFactory {
         return entity;
     }
 
+    // Create entity with GLB model
+    async createModelEntity(modelUrl, x = 0, y = 0, z = 0) {
+        const entity = this.entityManager.createEntity();
+        
+        entity.addComponent(new TransformComponent(x, y, z));
+        entity.addComponent(new ModelComponent(modelUrl));
+        
+        const modelComponent = entity.getComponent(ModelComponent);
+        const model = await modelComponent.loadModel();
+        
+        if (model) {
+            // Enable shadows for all meshes in the model
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            
+            this.scene.add(model);
+        }
+        
+        return entity;
+    }
+
     // Remove entity and its mesh from scene
     destroyEntity(entity) {
         const meshComponent = entity.getComponent(MeshComponent);
+        const modelComponent = entity.getComponent(ModelComponent);
+        
         if (meshComponent) {
             this.scene.remove(meshComponent.mesh);
         }
+        
+        if (modelComponent && modelComponent.model) {
+            this.scene.remove(modelComponent.model);
+        }
+        
         this.entityManager.removeEntity(entity);
     }
 
@@ -515,6 +656,264 @@ class EntityFactory {
         
         return this.createBatch('cube', count, positions, colors, sizes);
     }
+
+    // PHYSICS-ENABLED ENTITY CREATION METHODS
+
+    // Create a physics-enabled cube
+    createPhysicsCube(x = 0, y = 0, z = 0, color = 0x00ff00, size = 1, options = {}) {
+        const entity = this.entityManager.createEntity();
+        
+        // Add transform component
+        entity.addComponent(componentPool.getTransformComponent(x, y, z));
+        
+        // Add visual mesh
+        const geometry = geometryPool.getBoxGeometry(size);
+        const material = geometryPool.getMaterial(color);
+        entity.addComponent(new MeshComponent(geometry, material));
+        
+        // Add physics components
+        const rigidBody = componentPool.getRigidBodyComponent({
+            type: options.type || 'dynamic',
+            mass: options.mass || 1,
+            ...options
+        });
+        console.log('Adding rigidBody component to cube entity:', entity.id, rigidBody);
+        entity.addComponent(rigidBody);
+        
+        const colliderShape = PhysicsShapeFactory.createBoxShape(size, size, size);
+        const collider = componentPool.getColliderComponent(colliderShape, options.collider || {});
+        console.log('Adding collider component to cube entity:', entity.id, collider);
+        entity.addComponent(collider);
+        
+        // Debug: Check what components are on the entity
+        console.log('Cube entity components after adding physics:', {
+            rigidBody: !!entity.getComponent(RigidBodyComponent),
+            collider: !!entity.getComponent(ColliderComponent),
+            transform: !!entity.getComponent(TransformComponent),
+            mesh: !!entity.getComponent(MeshComponent)
+        });
+        
+        // Notify physics system that this entity now has physics components
+        this.entityManager.notifyPhysicsComponentsAdded(entity);
+        
+        // Setup mesh properties
+        const meshComponent = entity.getComponent(MeshComponent);
+        meshComponent.mesh.castShadow = true;
+        meshComponent.mesh.receiveShadow = true;
+        this.scene.add(meshComponent.mesh);
+        
+        return entity;
+    }
+
+    // Create a physics-enabled sphere
+    createPhysicsSphere(x = 0, y = 0, z = 0, color = 0xff0000, radius = 0.5, options = {}) {
+        const entity = this.entityManager.createEntity();
+        
+        // Add transform component
+        entity.addComponent(componentPool.getTransformComponent(x, y, z));
+        
+        // Add visual mesh
+        const geometry = geometryPool.getSphereGeometry(radius, 16);
+        const material = geometryPool.getMaterial(color);
+        entity.addComponent(new MeshComponent(geometry, material));
+        
+        // Add physics components
+        const rigidBody = componentPool.getRigidBodyComponent({
+            type: options.type || 'dynamic',
+            mass: options.mass || 1,
+            ...options
+        });
+        entity.addComponent(rigidBody);
+        
+        const colliderShape = PhysicsShapeFactory.createSphereShape(radius);
+        const collider = componentPool.getColliderComponent(colliderShape, options.collider || {});
+        entity.addComponent(collider);
+        
+        // Setup mesh properties
+        const meshComponent = entity.getComponent(MeshComponent);
+        meshComponent.mesh.castShadow = true;
+        meshComponent.mesh.receiveShadow = true;
+        this.scene.add(meshComponent.mesh);
+        
+        return entity;
+    }
+
+    // Create a physics-enabled plane (ground)
+    createPhysicsPlane(x = 0, y = 0, z = 0, color = 0x888888, width = 10, height = 10, options = {}) {
+        const entity = this.entityManager.createEntity();
+        
+        // Add transform component
+        entity.addComponent(componentPool.getTransformComponent(x, y, z));
+        
+        // Add visual mesh
+        const geometry = geometryPool.getPlaneGeometry(width, height);
+        const material = geometryPool.getMaterial(color);
+        entity.addComponent(new MeshComponent(geometry, material));
+        
+        // Add physics components (static by default for ground)
+        const rigidBody = componentPool.getRigidBodyComponent({
+            type: 'static',
+            mass: 0,
+            ...options
+        });
+        console.log('Adding rigidBody component to entity:', entity.id, rigidBody);
+        entity.addComponent(rigidBody);
+        
+        // Use a box shape for the ground instead of a plane shape for better physics
+        const colliderShape = PhysicsShapeFactory.createBoxShape(width, 0.1, height);
+        const collider = componentPool.getColliderComponent(colliderShape, options.collider || {});
+        console.log('Adding collider component to entity:', entity.id, collider);
+        entity.addComponent(collider);
+        
+        // Debug: Check what components are on the entity
+        console.log('Entity components after adding physics:', {
+            rigidBody: !!entity.getComponent(RigidBodyComponent),
+            collider: !!entity.getComponent(ColliderComponent),
+            transform: !!entity.getComponent(TransformComponent),
+            mesh: !!entity.getComponent(MeshComponent)
+        });
+        
+        // Notify physics system that this entity now has physics components
+        this.entityManager.notifyPhysicsComponentsAdded(entity);
+        
+        // Setup mesh properties
+        const meshComponent = entity.getComponent(MeshComponent);
+        meshComponent.mesh.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+        meshComponent.mesh.receiveShadow = true;
+        this.scene.add(meshComponent.mesh);
+        
+        return entity;
+    }
+
+    // Create a physics-enabled cylinder
+    createPhysicsCylinder(x = 0, y = 0, z = 0, color = 0x0000ff, radius = 0.5, height = 2, options = {}) {
+        const entity = this.entityManager.createEntity();
+        
+        // Add transform component
+        entity.addComponent(componentPool.getTransformComponent(x, y, z));
+        
+        // Add visual mesh (using box for now, could be replaced with cylinder geometry)
+        const geometry = geometryPool.getBoxGeometry(radius * 2, height, radius * 2);
+        const material = geometryPool.getMaterial(color);
+        entity.addComponent(new MeshComponent(geometry, material));
+        
+        // Add physics components
+        const rigidBody = componentPool.getRigidBodyComponent({
+            type: options.type || 'dynamic',
+            mass: options.mass || 1,
+            ...options
+        });
+        entity.addComponent(rigidBody);
+        
+        const colliderShape = PhysicsShapeFactory.createCylinderShape(radius, radius, height);
+        const collider = componentPool.getColliderComponent(colliderShape, options.collider || {});
+        entity.addComponent(collider);
+        
+        // Setup mesh properties
+        const meshComponent = entity.getComponent(MeshComponent);
+        meshComponent.mesh.castShadow = true;
+        meshComponent.mesh.receiveShadow = true;
+        this.scene.add(meshComponent.mesh);
+        
+        return entity;
+    }
+
+    // Create a physics-enabled model entity
+    async createPhysicsModelEntity(modelUrl, x = 0, y = 0, z = 0, options = {}) {
+        const entity = this.entityManager.createEntity();
+        
+        // Add transform component
+        entity.addComponent(componentPool.getTransformComponent(x, y, z));
+        
+        // Add model component
+        entity.addComponent(new ModelComponent(modelUrl));
+        
+        // Add physics components
+        const rigidBody = componentPool.getRigidBodyComponent({
+            type: options.type || 'dynamic',
+            mass: options.mass || 1,
+            ...options
+        });
+        entity.addComponent(rigidBody);
+        
+        // For models, we'll use a box collider as default
+        // In a real implementation, you'd want to generate colliders from the model geometry
+        const colliderShape = PhysicsShapeFactory.createBoxShape(
+            options.width || 1,
+            options.height || 1,
+            options.depth || 1
+        );
+        const collider = componentPool.getColliderComponent(colliderShape, options.collider || {});
+        entity.addComponent(collider);
+        
+        // Load model
+        const modelComponent = entity.getComponent(ModelComponent);
+        const model = await modelComponent.loadModel();
+        
+        if (model) {
+            // Enable shadows for all meshes in the model
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            
+            this.scene.add(model);
+        }
+        
+        return entity;
+    }
+
+    // Create a physics-enabled batch of objects
+    createPhysicsBatch(type, count, positions, colors, sizes, physicsOptions = {}) {
+        const entities = [];
+        
+        for (let i = 0; i < count; i++) {
+            const pos = positions[i] || [0, 0, 0];
+            const color = colors[i] || 0x00ff00;
+            const size = sizes[i] || 1;
+            const options = physicsOptions[i] || {};
+            
+            let entity;
+            switch(type) {
+                case 'physicsCube':
+                    entity = this.createPhysicsCube(pos[0], pos[1], pos[2], color, size, options);
+                    break;
+                case 'physicsSphere':
+                    entity = this.createPhysicsSphere(pos[0], pos[1], pos[2], color, size, options);
+                    break;
+                case 'physicsCylinder':
+                    entity = this.createPhysicsCylinder(pos[0], pos[1], pos[2], color, size, size * 2, options);
+                    break;
+            }
+            entities.push(entity);
+        }
+        
+        return entities;
+    }
+
+    // Create a physics-enabled cube field
+    createPhysicsCubeField(count, spacing = 2, color = 0x00ff00, size = 1, physicsOptions = {}) {
+        const positions = [];
+        const colors = [];
+        const sizes = [];
+        const options = [];
+        
+        const gridSize = Math.ceil(Math.sqrt(count));
+        
+        for (let i = 0; i < count; i++) {
+            const x = (i % gridSize) * spacing - (gridSize * spacing) / 2;
+            const z = Math.floor(i / gridSize) * spacing - (gridSize * spacing) / 2;
+            
+            positions.push([x, 0, z]);
+            colors.push(color);
+            sizes.push(size);
+            options.push(physicsOptions);
+        }
+        
+        return this.createPhysicsBatch('physicsCube', count, positions, colors, sizes, options);
+    }
 }
 
 export {
@@ -522,12 +921,17 @@ export {
     Component,
     TransformComponent,
     MeshComponent,
+    ModelComponent,
     MovementComponent,
     RotationComponent,
+    RigidBodyComponent,
+    ColliderComponent,
+    PhysicsMaterialComponent,
     System,
     MovementSystem,
     RotationSystem,
     RenderSystem,
     EntityManager,
-    EntityFactory
+    EntityFactory,
+    ModelLoader
 };
