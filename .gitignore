@@ -1,44 +1,179 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# ========================
+# Java / Spring Boot
+# ========================
 
-# Test binary, built with `go test -c`
-*.test
+# Compiled class files
+*.class
 
-# Output of the go coverage tool
-*.out
+# Log files
+*.log
+logs/
 
-# Dependency directories
-vendor/
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
 
-# Go workspace file
-go.work
+# Virtual machine crash logs
+hs_err_pid*
+replay_pid*
 
-# Database files
+# ========================
+# Gradle
+# ========================
+
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Gradle wrapper properties (optional - some teams commit this)
+# !gradle/wrapper/gradle-wrapper.properties
+
+# ========================
+# Maven (if you switch from Gradle)
+# ========================
+
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# ========================
+# IDE - IntelliJ IDEA
+# ========================
+
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# ========================
+# IDE - Eclipse
+# ========================
+
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+# ========================
+# IDE - VS Code
+# ========================
+
+.vscode/
+
+# ========================
+# IDE - NetBeans
+# ========================
+
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ========================
+# Environment & Secrets
+# ========================
+
+# Environment variables - NEVER commit these!
+.env
+.env.*
+!.env.example
+
+# Application secrets
+application-local.properties
+application-local.yml
+application-secrets.properties
+application-secrets.yml
+*-secret.properties
+*-secret.yml
+
+# ========================
+# Database
+# ========================
+
 *.db
 *.sqlite
 *.sqlite3
-database/
-**/database/
+*.h2.db
 
-# Environment variables
-.env
-.env.local
+# ========================
+# OS Generated Files
+# ========================
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS generated files
+# macOS
 .DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
+.AppleDouble
+.LSOverride
+
+# Windows
 Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ========================
+# Testing & Coverage
+# ========================
+
+# Test output
+test-output/
+surefire-reports/
+
+# Coverage reports
+jacoco.exec
+*.exec
+coverage/
+htmlcov/
+
+# ========================
+# Misc
+# ========================
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+
+# Lombok config (optional)
+# lombok.config
+
+# Spring Boot DevTools
+spring-boot-devtools.properties
