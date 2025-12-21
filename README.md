@@ -23,15 +23,47 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 Then reload: `source ~/.zshrc`
 
+### Installing Docker (macOS)
+
+**Option 1: Colima (CLI-only, lightweight)**
+
+```bash
+brew install colima docker docker-compose
+```
+
+**Option 2: Docker Desktop**
+
+```bash
+brew install --cask docker
+```
+
+### Starting Docker
+
+**With Colima:**
+
+```bash
+# Start Docker daemon
+colima start
+
+# Stop when done
+colima stop
+```
+
+**With Docker Desktop:**
+
+Open Docker Desktop from Applications and wait for it to start.
+
 ## Quick Start
 
-1. Start the PostgreSQL database:
+1. Start Docker (if using Colima: `colima start`)
+
+2. Start the PostgreSQL database:
 
 ```bash
 docker-compose up -d
 ```
 
-2. Run the application:
+3. Run the application:
 
 ```bash
 ./gradlew bootRun
@@ -131,6 +163,12 @@ export DATABASE_PASSWORD=punchcard
 ### Useful Commands
 
 ```bash
+# Start Docker daemon (Colima)
+colima start
+
+# Stop Docker daemon (Colima)
+colima stop
+
 # Start PostgreSQL database
 docker-compose up -d
 
@@ -157,7 +195,7 @@ docker-compose down
 - Spring Data JPA
 - PostgreSQL
 - Lombok
-- Docker Compose
+- Docker Compose / Colima
 
 ## License
 
