@@ -2,6 +2,33 @@
 
 Complete API reference for the PunchCard social media backend.
 
+---
+
+## Table of Contents
+
+- [Base URL](#base-url)
+- [Authentication](#authentication)
+- [Endpoints](#endpoints)
+  - [Authentication Endpoints](#authentication-endpoints)
+    - [Register User](#register-user)
+    - [Login](#login)
+  - [User Endpoints](#user-endpoints)
+    - [Create User (Admin Only)](#create-user-admin-only)
+    - [List Users](#list-users)
+    - [Get User by ID](#get-user-by-id)
+    - [Update User](#update-user)
+    - [Delete User](#delete-user)
+  - [Hello Endpoint](#hello-endpoint)
+- [Data Types](#data-types)
+- [Error Responses](#error-responses)
+  - [Status Codes](#status-codes)
+  - [Common Error Scenarios](#common-error-scenarios)
+- [Pagination](#pagination)
+- [Rate Limiting](#rate-limiting)
+- [Related Documentation](#related-documentation)
+
+---
+
 ## Base URL
 
 ```

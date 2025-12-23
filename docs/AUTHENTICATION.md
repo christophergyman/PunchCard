@@ -2,6 +2,37 @@
 
 Complete guide to authentication and authorization in the PunchCard API.
 
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Authentication Flow](#authentication-flow)
+- [Getting Started](#getting-started)
+  - [1. Set Up JWT Secret](#1-set-up-jwt-secret)
+  - [2. Register a User](#2-register-a-user)
+  - [3. Login and Get Token](#3-login-and-get-token)
+- [Using Tokens](#using-tokens)
+  - [Including Tokens in Requests](#including-tokens-in-requests)
+  - [Token Expiration](#token-expiration)
+  - [Token Structure](#token-structure)
+- [Roles and Permissions](#roles-and-permissions)
+  - [USER Role](#user-role)
+  - [ADMIN Role](#admin-role)
+  - [Role-Based Access Control Matrix](#role-based-access-control-matrix)
+- [Security Best Practices](#security-best-practices)
+  - [Storing Tokens](#storing-tokens)
+  - [Token Refresh Strategy](#token-refresh-strategy)
+  - [Handling Expired Tokens](#handling-expired-tokens)
+  - [HTTPS in Production](#https-in-production)
+- [Troubleshooting](#troubleshooting)
+  - [Common Authentication Errors](#common-authentication-errors)
+  - [Debugging Tips](#debugging-tips)
+- [Known Limitations](#known-limitations)
+- [Related Documentation](#related-documentation)
+
+---
+
 ## Overview
 
 PunchCard uses **JWT (JSON Web Token)** authentication for stateless API access. After logging in, you receive a JWT token that you include in subsequent requests.

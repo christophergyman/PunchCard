@@ -2,6 +2,49 @@
 
 Complete guide to testing the PunchCard API.
 
+---
+
+## Table of Contents
+
+- [Running Tests](#running-tests)
+  - [Run All Tests](#run-all-tests)
+  - [Run Specific Test Class](#run-specific-test-class)
+  - [Run Tests Matching a Pattern](#run-tests-matching-a-pattern)
+  - [Run Tests with Coverage](#run-tests-with-coverage)
+  - [View Test Reports](#view-test-reports)
+- [Test Structure](#test-structure)
+  - [Organization by Layer](#organization-by-layer)
+  - [Test Types](#test-types)
+- [Test Categories](#test-categories)
+  - [Repository Tests](#repository-tests)
+  - [Service Tests](#service-tests)
+  - [Controller Tests](#controller-tests)
+- [Writing Tests](#writing-tests)
+  - [Test Utilities](#test-utilities)
+  - [Mocking with @MockitoBean](#mocking-with-mockitobean)
+  - [Security Test Configuration](#security-test-configuration)
+  - [Using @WithMockUser](#using-withmockuser)
+  - [Using user() Request Post Processor](#using-user-request-post-processor)
+  - [Test Data Setup](#test-data-setup)
+  - [Assertion Patterns](#assertion-patterns)
+- [Test Configuration](#test-configuration)
+  - [Test Application Properties](#test-application-properties)
+  - [Test Isolation](#test-isolation)
+- [Best Practices](#best-practices)
+  - [Test Naming](#test-naming)
+  - [Test Organization](#test-organization)
+  - [Test Independence](#test-independence)
+  - [Mocking Guidelines](#mocking-guidelines)
+  - [Assertion Guidelines](#assertion-guidelines)
+  - [Performance](#performance)
+- [Test Coverage](#test-coverage)
+  - [Current Coverage](#current-coverage)
+  - [Running Coverage Reports](#running-coverage-reports)
+- [Troubleshooting](#troubleshooting)
+- [Related Documentation](#related-documentation)
+
+---
+
 ## Running Tests
 
 ### Run All Tests
