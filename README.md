@@ -88,6 +88,17 @@ Comprehensive documentation is available in the `docs/` folder:
 - **[TESTING.md](docs/TESTING.md)** - Testing documentation, test structure, and best practices
 - **[SPRING_BOOT_SETUP.md](docs/SPRING_BOOT_SETUP.md)** - Spring Boot setup and dependency reference
 
+### Postman Collection
+
+Import the files from `postman/` into Postman for easy API testing:
+
+1. Open Postman and click **Import**
+2. Select both files from `postman/`:
+   - `PunchCard-API.postman_collection.json` - All endpoints with tests
+   - `PunchCard-API.postman_environment.json` - Environment variables
+3. Select **PunchCard API** environment (top right)
+4. Run **Login** request - JWT token auto-saves for authenticated requests
+
 ## API Endpoints
 
 ### Quick Reference
