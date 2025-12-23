@@ -63,7 +63,13 @@ Open Docker Desktop from Applications and wait for it to start.
 docker-compose up -d
 ```
 
-3. Run the application:
+3. Set the JWT secret (required):
+
+```bash
+export JWT_SECRET="your-secret-key-at-least-32-characters-long"
+```
+
+4. Run the application:
 
 ```bash
 ./gradlew bootRun
@@ -71,29 +77,39 @@ docker-compose up -d
 
 The server starts at `http://localhost:8080`
 
+> **Note:** The application requires `JWT_SECRET` to be set. See [AUTHENTICATION.md](docs/AUTHENTICATION.md) for details.
+
+## Documentation
+
+Comprehensive documentation is available in the `docs/` folder:
+
+- **[API.md](docs/API.md)** - Complete API reference with all endpoints, request/response schemas, and examples
+- **[AUTHENTICATION.md](docs/AUTHENTICATION.md)** - JWT authentication guide, token usage, roles, and troubleshooting
+- **[TESTING.md](docs/TESTING.md)** - Testing documentation, test structure, and best practices
+- **[SPRING_BOOT_SETUP.md](docs/SPRING_BOOT_SETUP.md)** - Spring Boot setup and dependency reference
+
 ## API Endpoints
 
-### Hello Endpoint
+### Quick Reference
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
 | GET | `/api/hello` | Returns "Hello World" | No |
+| POST | `/api/auth/register` | Register a new user | No |
+| POST | `/api/auth/login` | Login and get JWT token | No |
+| POST | `/api/users` | Create user (admin only) | Yes (ADMIN) |
+| GET | `/api/users` | Get all users (paginated) | Yes |
+| GET | `/api/users/{id}` | Get user by ID | Yes |
+| PUT | `/api/users/{id}` | Update user | Yes (owner or ADMIN) |
+| DELETE | `/api/users/{id}` | Delete user | Yes (owner or ADMIN) |
 
-### User Endpoints
+> **Note:** Most endpoints require authentication. See [AUTHENTICATION.md](docs/AUTHENTICATION.md) for details.
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/api/users` | Create a new user | No |
-| GET | `/api/users` | Get all users (paginated) | No |
-| GET | `/api/users/{id}` | Get user by ID | No |
-| PUT | `/api/users/{id}` | Update user | No |
-| DELETE | `/api/users/{id}` | Delete user | No |
+### Quick Examples
 
-### Examples
-
-**Create User:**
+**Register a user:**
 ```bash
-curl -X POST http://localhost:8080/api/users \
+curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "johndoe",
@@ -102,35 +118,33 @@ curl -X POST http://localhost:8080/api/users \
   }'
 ```
 
-**Get All Users (with pagination):**
+**Login and get token:**
 ```bash
-curl "http://localhost:8080/api/users?page=0&size=20"
-```
-
-**Get User by ID:**
-```bash
-curl http://localhost:8080/api/users/{user-id}
-```
-
-**Update User:**
-```bash
-curl -X PUT http://localhost:8080/api/users/{user-id} \
+curl -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "newusername"
+    "username": "johndoe",
+    "password": "securepass123"
   }'
 ```
 
-**Delete User:**
+**Get users (authenticated):**
 ```bash
-curl -X DELETE http://localhost:8080/api/users/{user-id}
+curl "http://localhost:8080/api/users?page=0&size=20" \
+  -H "Authorization: Bearer <your-token>"
 ```
+
+For complete API documentation with all endpoints, request/response schemas, and detailed examples, see [API.md](docs/API.md).
 
 ## Running Tests
 
 ```bash
 ./gradlew test
 ```
+
+View test reports at `build/reports/tests/test/index.html`
+
+For detailed testing documentation, see [TESTING.md](docs/TESTING.md).
 
 ## Database
 
@@ -157,6 +171,14 @@ export DATABASE_URL=jdbc:postgresql://localhost:5432/punchcard
 export DATABASE_USER=punchcard
 export DATABASE_PASSWORD=punchcard
 ```
+
+**Required:** You must also set the JWT secret:
+
+```bash
+export JWT_SECRET="your-secret-key-at-least-32-characters-long"
+```
+
+The application will fail to start if `JWT_SECRET` is not set. See [AUTHENTICATION.md](docs/AUTHENTICATION.md) for details.
 
 ## Development
 
@@ -191,11 +213,12 @@ docker-compose down
 ## Tech Stack
 
 - Spring Boot 4.0.1
-- Spring Security
+- Spring Security (JWT authentication)
 - Spring Data JPA
 - PostgreSQL
 - Lombok
 - Docker Compose / Colima
+- JJWT (JWT library)
 
 ## License
 

@@ -35,6 +35,11 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private Role role = Role.USER;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
