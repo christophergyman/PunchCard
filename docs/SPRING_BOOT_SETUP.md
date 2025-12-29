@@ -233,43 +233,175 @@ spring.security.oauth2.resourceserver.jwt.secret-key=your-256-bit-secret-key-her
 @LastModifiedDate   // Auto-set update timestamp
 ```
 
-**Example Entity:**
+**Example Entity (User):**
 ```java
 @Entity
 @Table(name = "users")
 @Data  // Lombok
 public class User {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(unique = true, nullable = false)
     private String username;
-    
+
     @Column(unique = true, nullable = false)
     private String email;
-    
+
     @Column(nullable = false)
     private String passwordHash;
-    
-    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL)
-    private List<Post> posts = new ArrayList<>();
-    
+
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL)
+    private List<PunchCard> punchCards = new ArrayList<>();
+
     @CreatedDate
     private LocalDateTime createdAt;
 }
 ```
 
-**Example Repository:**
+**Example Entity (PunchCard):**
+```java
+@Entity
+@Table(name = "punch_cards")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PunchCard {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(length = 500)
+    private String description;
+
+    @Column(nullable = false)
+    private Integer totalPunches;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
+
+    @OneToMany(mappedBy = "card", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Punch> punches = new ArrayList<>();
+
+    @Embedded
+    private CardStyle style;
+
+    @CreatedDate
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    private LocalDateTime updatedAt;
+
+    // Computed property
+    public int getCurrentPunches() {
+        return punches.size();
+    }
+
+    public boolean isComplete() {
+        return getCurrentPunches() >= totalPunches;
+    }
+}
+```
+
+**Example Entity (Punch):**
+```java
+@Entity
+@Table(name = "punches")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class Punch {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "card_id", nullable = false)
+    private PunchCard card;
+
+    @Column(nullable = false)
+    private Integer position;
+
+    @Column(length = 200)
+    private String note;
+
+    @Column(nullable = false)
+    private LocalDateTime punchedAt;
+}
+```
+
+**Example Embeddable (CardStyle):**
+```java
+@Embeddable
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class CardStyle {
+
+    @Column(length = 7)
+    private String backgroundColor;
+
+    @Column(length = 7)
+    private String textColor;
+
+    @Enumerated(EnumType.STRING)
+    private PunchShape punchShape;
+}
+```
+
+**Example Enum (PunchShape):**
+```java
+public enum PunchShape {
+    CIRCLE,
+    STAR,
+    HEART,
+    CHECK,
+    DIAMOND
+}
+```
+
+**Example Repository (UserRepository):**
 ```java
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
-    
+public interface UserRepository extends JpaRepository<User, UUID> {
+
     Optional<User> findByUsername(String username);
     Optional<User> findByEmail(String email);
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
+}
+```
+
+**Example Repository (PunchCardRepository):**
+```java
+@Repository
+public interface PunchCardRepository extends JpaRepository<PunchCard, UUID> {
+
+    Page<PunchCard> findByOwnerId(UUID ownerId, Pageable pageable);
+    Optional<PunchCard> findByIdAndOwnerId(UUID id, UUID ownerId);
+    boolean existsByIdAndOwnerId(UUID id, UUID ownerId);
+}
+```
+
+**Example Repository (PunchRepository):**
+```java
+@Repository
+public interface PunchRepository extends JpaRepository<Punch, UUID> {
+
+    List<Punch> findByCardIdOrderByPositionAsc(UUID cardId);
+    boolean existsByCardIdAndPosition(UUID cardId, Integer position);
+    int countByCardId(UUID cardId);
 }
 ```
 
@@ -420,23 +552,39 @@ punchcard-api/
 │   │   │       ├── controller/                  # REST controllers
 │   │   │       │   ├── AuthController.java
 │   │   │       │   ├── UserController.java
-│   │   │       │   └── PostController.java
+│   │   │       │   ├── PunchCardController.java
+│   │   │       │   └── HelloController.java
 │   │   │       ├── dto/                         # Data Transfer Objects
 │   │   │       │   ├── request/
+│   │   │       │   │   ├── CreateCardRequest.java
+│   │   │       │   │   ├── UpdateCardRequest.java
+│   │   │       │   │   └── AddPunchRequest.java
 │   │   │       │   └── response/
+│   │   │       │       ├── PunchCardResponse.java
+│   │   │       │       ├── PunchResponse.java
+│   │   │       │       └── CardStyleDto.java
 │   │   │       ├── entity/                      # JPA entities
 │   │   │       │   ├── User.java
-│   │   │       │   ├── Post.java
-│   │   │       │   └── Comment.java
+│   │   │       │   ├── PunchCard.java
+│   │   │       │   ├── Punch.java
+│   │   │       │   ├── CardStyle.java           # Embeddable
+│   │   │       │   └── PunchShape.java          # Enum
 │   │   │       ├── repository/                  # JPA repositories
 │   │   │       │   ├── UserRepository.java
-│   │   │       │   └── PostRepository.java
+│   │   │       │   ├── PunchCardRepository.java
+│   │   │       │   └── PunchRepository.java
 │   │   │       ├── service/                     # Business logic
 │   │   │       │   ├── AuthService.java
 │   │   │       │   ├── UserService.java
-│   │   │       │   └── PostService.java
+│   │   │       │   ├── PunchCardService.java
+│   │   │       │   ├── PunchService.java
+│   │   │       │   └── CardSecurityService.java # Authorization checks
 │   │   │       └── exception/                   # Custom exceptions
-│   │   │           └── GlobalExceptionHandler.java
+│   │   │           ├── GlobalExceptionHandler.java
+│   │   │           ├── PunchCardNotFoundException.java
+│   │   │           ├── CardFullException.java
+│   │   │           ├── DuplicatePunchException.java
+│   │   │           └── InvalidPunchPositionException.java
 │   │   └── resources/
 │   │       ├── application.properties           # Main config
 │   │       ├── application-dev.properties       # Dev profile
@@ -444,7 +592,13 @@ punchcard-api/
 │   └── test/
 │       └── java/
 │           └── com/punchcard/api/
-│               └── PunchCardApplicationTests.java
+│               ├── PunchCardApplicationTests.java
+│               ├── controller/
+│               │   ├── PunchCardControllerTest.java
+│               │   └── PunchCardControllerAuthTest.java
+│               └── repository/
+│                   ├── PunchCardRepositoryTest.java
+│                   └── PunchRepositoryTest.java
 └── gradlew / gradlew.bat        # Gradle wrapper scripts
 ```
 

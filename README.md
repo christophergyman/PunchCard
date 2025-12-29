@@ -1,12 +1,15 @@
 # PunchCard
 
-A social media clone backend API built with Spring Boot 4.0.
+A full-stack punch card loyalty system with a Spring Boot 4.0 backend and React/Three.js frontend featuring interactive 3D punch cards.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for a high-level system overview.
 
 ## Prerequisites
 
 - **Java 21** - Required for Spring Boot 4.0
 - **Gradle** - Included via wrapper (`./gradlew`)
-- **Docker** - Required for PostgreSQL database
+- **Bun** or **Node.js** - Required for frontend
+- **Docker** - Required for PostgreSQL database (optional with dev profile)
 
 ### Installing Java 21 (macOS)
 
@@ -55,6 +58,27 @@ Open Docker Desktop from Applications and wait for it to start.
 
 ## Quick Start
 
+### Option 1: One Command (Recommended)
+
+Run both backend and frontend with a single command:
+
+```bash
+./run.sh
+```
+
+This will:
+1. Run backend tests
+2. Install frontend dependencies
+3. Start backend with H2 dev profile (no PostgreSQL needed)
+4. Start frontend dev server
+
+Access the app at:
+- **Frontend:** http://localhost:5173
+- **Backend API:** http://localhost:8080
+- **H2 Console:** http://localhost:8080/h2-console
+
+### Option 2: Manual Setup (with PostgreSQL)
+
 1. Start Docker (if using Colima: `colima start`)
 
 2. Start the PostgreSQL database:
@@ -69,22 +93,29 @@ docker-compose up -d
 export JWT_SECRET="your-secret-key-at-least-32-characters-long"
 ```
 
-4. Run the application:
+4. Run the backend:
 
 ```bash
 ./gradlew bootRun
 ```
 
-The server starts at `http://localhost:8080`
+5. Run the frontend (in another terminal):
 
-> **Note:** The application requires `JWT_SECRET` to be set. See [AUTHENTICATION.md](docs/AUTHENTICATION.md) for details.
+```bash
+cd frontend && bun install && bun dev
+```
+
+> **Note:** The application requires `JWT_SECRET` to be set when not using the dev profile. See [AUTHENTICATION.md](docs/AUTHENTICATION.md) for details.
 
 ## Documentation
 
-Comprehensive documentation is available in the `docs/` folder:
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - High-level system architecture overview
+
+Detailed documentation in the `docs/` folder:
 
 - **[API.md](docs/API.md)** - Complete API reference with all endpoints, request/response schemas, and examples
 - **[AUTHENTICATION.md](docs/AUTHENTICATION.md)** - JWT authentication guide, token usage, roles, and troubleshooting
+- **[FRONTEND.md](docs/FRONTEND.md)** - React/Three.js frontend architecture, components, and state management
 - **[TESTING.md](docs/TESTING.md)** - Testing documentation, test structure, and best practices
 - **[SPRING_BOOT_SETUP.md](docs/SPRING_BOOT_SETUP.md)** - Spring Boot setup and dependency reference
 
@@ -105,10 +136,16 @@ Import the files from `postman/` into Postman for easy API testing:
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| GET | `/api/hello` | Returns "Hello World" | No |
 | POST | `/api/auth/register` | Register a new user | No |
 | POST | `/api/auth/login` | Login and get JWT token | No |
-| POST | `/api/users` | Create user (admin only) | Yes (ADMIN) |
+| GET | `/api/auth/me` | Get current user | Yes |
+| POST | `/api/cards` | Create punch card | Yes |
+| GET | `/api/cards` | List my punch cards | Yes |
+| GET | `/api/cards/{id}` | Get punch card by ID | Yes |
+| PUT | `/api/cards/{id}` | Update punch card | Yes (owner) |
+| DELETE | `/api/cards/{id}` | Delete punch card | Yes (owner) |
+| POST | `/api/cards/{id}/punches` | Add punch to card | Yes (owner) |
+| GET | `/api/cards/{id}/punches` | List punches on card | Yes |
 | GET | `/api/users` | Get all users (paginated) | Yes |
 | GET | `/api/users/{id}` | Get user by ID | Yes |
 | PUT | `/api/users/{id}` | Update user | Yes (owner or ADMIN) |
@@ -223,13 +260,23 @@ docker-compose down
 
 ## Tech Stack
 
+### Backend
 - Spring Boot 4.0.1
 - Spring Security (JWT authentication)
 - Spring Data JPA
-- PostgreSQL
+- PostgreSQL / H2 (dev)
 - Lombok
-- Docker Compose / Colima
 - JJWT (JWT library)
+
+### Frontend
+- React 19.2
+- TypeScript 5.9
+- Vite 7.2
+- Three.js / React Three Fiber (3D visualization)
+- Zustand (state management)
+- TanStack Query (server state)
+- Tailwind CSS 4.1
+- Axios
 
 ## License
 

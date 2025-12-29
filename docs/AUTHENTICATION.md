@@ -20,6 +20,8 @@ Complete guide to authentication and authorization in the PunchCard API.
   - [USER Role](#user-role)
   - [ADMIN Role](#admin-role)
   - [Role-Based Access Control Matrix](#role-based-access-control-matrix)
+  - [Owner-Based Access Control](#owner-based-access-control)
+  - [CardSecurityService](#cardsecurityservice)
 - [Security Best Practices](#security-best-practices)
   - [Storing Tokens](#storing-tokens)
   - [Token Refresh Strategy](#token-refresh-strategy)
@@ -233,9 +235,17 @@ Default role assigned to all new users.
 - ✅ View all users (`GET /api/users`, `GET /api/users/{id}`)
 - ✅ Update own profile (`PUT /api/users/{id}` where `id` matches their own)
 - ✅ Delete own account (`DELETE /api/users/{id}` where `id` matches their own)
+- ✅ Get current user info (`GET /api/auth/me`)
+- ✅ Create punch cards (`POST /api/cards`)
+- ✅ View own punch cards (`GET /api/cards`, `GET /api/cards/{id}`)
+- ✅ Update own punch cards (`PUT /api/cards/{id}` where owner)
+- ✅ Delete own punch cards (`DELETE /api/cards/{id}` where owner)
+- ✅ Add punches to own cards (`POST /api/cards/{cardId}/punches` where owner)
+- ✅ View punches on any card (`GET /api/cards/{cardId}/punches`)
 - ❌ Create users via `POST /api/users` (admin only)
 - ❌ Update other users' profiles
 - ❌ Delete other users' accounts
+- ❌ Modify other users' punch cards
 
 ### ADMIN Role
 
@@ -246,6 +256,9 @@ Elevated permissions for administrative tasks.
 - ✅ Create users via `POST /api/users`
 - ✅ Update any user's profile
 - ✅ Delete any user's account
+- ✅ Update any user's punch cards
+- ✅ Delete any user's punch cards
+- ✅ Add punches to any user's cards
 
 ### Role-Based Access Control Matrix
 
@@ -253,12 +266,79 @@ Elevated permissions for administrative tasks.
 |----------|--------|------|-------|
 | `/api/auth/register` | POST | ✅ | ✅ |
 | `/api/auth/login` | POST | ✅ | ✅ |
+| `/api/auth/me` | GET | ✅ | ✅ |
 | `/api/hello` | GET | ✅ | ✅ |
 | `/api/users` | POST | ❌ | ✅ |
 | `/api/users` | GET | ✅ | ✅ |
 | `/api/users/{id}` | GET | ✅ | ✅ |
 | `/api/users/{id}` | PUT | Own only | ✅ |
 | `/api/users/{id}` | DELETE | Own only | ✅ |
+| `/api/cards` | POST | ✅ | ✅ |
+| `/api/cards` | GET | ✅ | ✅ |
+| `/api/cards/{id}` | GET | ✅ | ✅ |
+| `/api/cards/{id}` | PUT | Own only | ✅ |
+| `/api/cards/{id}` | DELETE | Own only | ✅ |
+| `/api/cards/{cardId}/punches` | POST | Own only | ✅ |
+| `/api/cards/{cardId}/punches` | GET | ✅ | ✅ |
+
+### Owner-Based Access Control
+
+Some endpoints require the authenticated user to be the owner of the resource. This is enforced by the `CardSecurityService` for punch card operations.
+
+**Owner-Only Operations:**
+- `PUT /api/cards/{id}` - Only the card owner can update
+- `DELETE /api/cards/{id}` - Only the card owner can delete
+- `POST /api/cards/{cardId}/punches` - Only the card owner can add punches
+
+**How Ownership is Verified:**
+1. The authenticated user's ID is extracted from the JWT token
+2. The resource's `ownerId` field is compared to the authenticated user's ID
+3. If they don't match and the user is not an ADMIN, a `403 Forbidden` response is returned
+
+### CardSecurityService
+
+The `CardSecurityService` handles authorization checks for punch card operations.
+
+**Key Methods:**
+
+```java
+// Check if user can modify a card (owner or admin)
+boolean canModifyCard(UUID cardId, UserPrincipal user);
+
+// Check if user can add punches to a card (owner or admin)
+boolean canAddPunch(UUID cardId, UserPrincipal user);
+
+// Verify ownership and throw exception if unauthorized
+void verifyOwnership(UUID cardId, UserPrincipal user);
+```
+
+**Usage in Controllers:**
+
+```java
+@PutMapping("/cards/{id}")
+public ResponseEntity<PunchCardResponse> updateCard(
+    @PathVariable UUID id,
+    @RequestBody UpdateCardRequest request,
+    @AuthenticationPrincipal UserPrincipal user) {
+
+    // Security service verifies ownership
+    cardSecurityService.verifyOwnership(id, user);
+
+    return ResponseEntity.ok(cardService.updateCard(id, request));
+}
+```
+
+**Error Response for Unauthorized Access:**
+
+```json
+{
+  "status": 403,
+  "error": "Forbidden",
+  "message": "You do not have permission to modify this punch card",
+  "timestamp": "2024-12-22T10:30:00Z",
+  "errors": null
+}
+```
 
 ## Security Best Practices
 

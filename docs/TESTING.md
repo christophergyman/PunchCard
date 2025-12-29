@@ -105,12 +105,17 @@ src/test/java/com/punchard/api/
 │   ├── AuthControllerTest.java          # Authentication endpoint tests
 │   ├── UserControllerTest.java          # User endpoint tests (unit)
 │   ├── UserControllerAuthTest.java      # User authorization tests
+│   ├── PunchCardControllerTest.java     # Punch card endpoint tests (unit)
+│   ├── PunchCardControllerAuthTest.java # Punch card authorization tests
 │   └── HelloControllerTest.java         # Hello endpoint tests
 ├── repository/
-│   └── UserRepositoryTest.java          # Database repository tests
+│   ├── UserRepositoryTest.java          # User database tests
+│   ├── PunchCardRepositoryTest.java     # Punch card database tests
+│   └── PunchRepositoryTest.java         # Punch database tests
 ├── security/
 │   ├── CustomUserDetailsServiceTest.java # UserDetailsService tests
 │   ├── JwtServiceTest.java              # JWT token generation/validation tests
+│   ├── CardSecurityServiceTest.java     # Card authorization tests
 │   └── TestJwtUtils.java                # Test utilities for JWT tokens
 └── PunchCardApplicationTests.java       # Application context tests
 ```
@@ -305,16 +310,263 @@ Integration tests for authorization and role-based access.
 @SpringBootTest
 @AutoConfigureMockMvc
 class UserControllerAuthTest {
-    
+
     @Test
     @WithMockUser(roles = "ADMIN")
     void createUser_shouldReturn201_whenAdmin() {
         // Test admin access
     }
-    
+
     @Test
     void updateUser_shouldReturn403_whenNotOwner() {
         // Test ownership check
+    }
+}
+```
+
+#### Punch Card Controller Tests
+
+**File:** `src/test/java/com/punchard/api/controller/PunchCardControllerTest.java`
+
+Unit tests for punch card endpoints with mocked service.
+
+**Test Coverage:**
+- Create punch card
+- List user's cards (pagination)
+- Get card by ID
+- Update card
+- Delete card
+- Add punch to card
+- List punches
+- Validation errors
+- Error handling
+
+**Configuration:**
+- Uses `@WebMvcTest` for lightweight controller testing
+- Mocks `PunchCardService`, `PunchService`, `CardSecurityService`
+- Uses `@AutoConfigureMockMvc(addFilters = false)` to bypass security
+
+**Example:**
+```java
+@WebMvcTest(PunchCardController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@Import({TestSecurityConfig.class, GlobalExceptionHandler.class})
+class PunchCardControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private PunchCardService cardService;
+
+    @MockitoBean
+    private PunchService punchService;
+
+    @MockitoBean
+    private CardSecurityService cardSecurityService;
+
+    private UUID testCardId;
+    private PunchCardResponse testCardResponse;
+
+    @BeforeEach
+    void setUp() {
+        testCardId = UUID.randomUUID();
+        testCardResponse = PunchCardResponse.builder()
+            .id(testCardId)
+            .name("Coffee Rewards")
+            .totalPunches(10)
+            .currentPunches(0)
+            .isComplete(false)
+            .build();
+    }
+
+    @Test
+    void createCard_shouldReturn201_whenValidRequest() throws Exception {
+        when(cardService.createCard(any(), any())).thenReturn(testCardResponse);
+
+        mockMvc.perform(post("/api/cards")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "name": "Coffee Rewards",
+                        "totalPunches": 10
+                    }
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.name").value("Coffee Rewards"))
+            .andExpect(jsonPath("$.totalPunches").value(10));
+    }
+
+    @Test
+    void createCard_shouldReturn400_whenNameMissing() throws Exception {
+        mockMvc.perform(post("/api/cards")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "totalPunches": 10
+                    }
+                    """))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getCard_shouldReturn404_whenNotFound() throws Exception {
+        when(cardService.getCard(any()))
+            .thenThrow(new PunchCardNotFoundException(testCardId));
+
+        mockMvc.perform(get("/api/cards/{id}", testCardId))
+            .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void addPunch_shouldReturn409_whenDuplicatePosition() throws Exception {
+        doThrow(new DuplicatePunchException(5))
+            .when(punchService).addPunch(any(), any(), any());
+
+        mockMvc.perform(post("/api/cards/{cardId}/punches", testCardId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "position": 5
+                    }
+                    """))
+            .andExpect(status().isConflict());
+    }
+}
+```
+
+#### Punch Card Controller Authorization Tests
+
+**File:** `src/test/java/com/punchard/api/controller/PunchCardControllerAuthTest.java`
+
+Integration tests for punch card authorization and owner-only operations.
+
+**Test Coverage:**
+- Owner-only update operations
+- Owner-only delete operations
+- Owner-only punch operations
+- Admin override for all operations
+- 403 Forbidden scenarios
+- CardSecurityService integration
+
+**Configuration:**
+- Uses `@SpringBootTest` for full security context
+- Uses `@WithMockUser` and custom `UserPrincipal` for testing
+- Tests actual security enforcement
+
+**Example:**
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+class PunchCardControllerAuthTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private PunchCardRepository cardRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    private User owner;
+    private User otherUser;
+    private PunchCard testCard;
+
+    @BeforeEach
+    void setUp() {
+        cardRepository.deleteAll();
+        userRepository.deleteAll();
+
+        owner = userRepository.save(User.builder()
+            .username("owner")
+            .email("owner@example.com")
+            .password("hashed")
+            .build());
+
+        otherUser = userRepository.save(User.builder()
+            .username("other")
+            .email("other@example.com")
+            .password("hashed")
+            .build());
+
+        testCard = cardRepository.save(PunchCard.builder()
+            .name("Test Card")
+            .totalPunches(10)
+            .owner(owner)
+            .build());
+    }
+
+    @Test
+    void updateCard_shouldReturn200_whenOwner() throws Exception {
+        UserPrincipal ownerPrincipal = new UserPrincipal(
+            owner.getId(), owner.getUsername(), Role.USER);
+
+        mockMvc.perform(put("/api/cards/{id}", testCard.getId())
+                .with(user(ownerPrincipal))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "name": "Updated Card"
+                    }
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Updated Card"));
+    }
+
+    @Test
+    void updateCard_shouldReturn403_whenNotOwner() throws Exception {
+        UserPrincipal otherPrincipal = new UserPrincipal(
+            otherUser.getId(), otherUser.getUsername(), Role.USER);
+
+        mockMvc.perform(put("/api/cards/{id}", testCard.getId())
+                .with(user(otherPrincipal))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "name": "Updated Card"
+                    }
+                    """))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void updateCard_shouldReturn200_whenAdmin() throws Exception {
+        mockMvc.perform(put("/api/cards/{id}", testCard.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "name": "Admin Updated Card"
+                    }
+                    """))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    void addPunch_shouldReturn403_whenNotOwner() throws Exception {
+        UserPrincipal otherPrincipal = new UserPrincipal(
+            otherUser.getId(), otherUser.getUsername(), Role.USER);
+
+        mockMvc.perform(post("/api/cards/{cardId}/punches", testCard.getId())
+                .with(user(otherPrincipal))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {
+                        "position": 1
+                    }
+                    """))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deleteCard_shouldReturn403_whenNotOwner() throws Exception {
+        UserPrincipal otherPrincipal = new UserPrincipal(
+            otherUser.getId(), otherUser.getUsername(), Role.USER);
+
+        mockMvc.perform(delete("/api/cards/{id}", testCard.getId())
+                .with(user(otherPrincipal)))
+            .andExpect(status().isForbidden());
     }
 }
 ```
@@ -584,11 +836,11 @@ Each test should be independent:
 
 The project includes tests for:
 
-- ✅ Repository layer (UserRepository)
-- ✅ Service layer (JWT, UserDetails)
-- ✅ Controller layer (Auth, User, Hello)
-- ✅ Security/Authorization
-- ✅ Error handling
+- ✅ Repository layer (UserRepository, PunchCardRepository, PunchRepository)
+- ✅ Service layer (JWT, UserDetails, CardSecurityService)
+- ✅ Controller layer (Auth, User, PunchCard, Hello)
+- ✅ Security/Authorization (role-based, owner-based)
+- ✅ Error handling (including punch card specific errors)
 - ✅ Validation
 
 ### Running Coverage Reports
