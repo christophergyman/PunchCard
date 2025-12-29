@@ -4,10 +4,14 @@ import com.punchard.api.dto.AuthResponse;
 import com.punchard.api.dto.CreateUserRequest;
 import com.punchard.api.dto.LoginRequest;
 import com.punchard.api.dto.UserResponse;
+import com.punchard.api.security.UserPrincipal;
 import com.punchard.api.service.AuthService;
+import com.punchard.api.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -18,9 +22,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserService userService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, UserService userService) {
         this.authService = authService;
+        this.userService = userService;
     }
 
     /**
@@ -39,6 +45,16 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get the currently authenticated user.
+     */
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserResponse> getCurrentUser(@AuthenticationPrincipal UserPrincipal principal) {
+        UserResponse user = userService.getUserById(principal.getId());
+        return ResponseEntity.ok(user);
     }
 }
 
