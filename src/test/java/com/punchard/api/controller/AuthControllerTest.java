@@ -10,6 +10,7 @@ import com.punchard.api.exception.DuplicateUserException;
 import com.punchard.api.exception.GlobalExceptionHandler;
 import com.punchard.api.security.JwtAuthenticationFilter;
 import com.punchard.api.service.AuthService;
+import com.punchard.api.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private UserService userService;
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
