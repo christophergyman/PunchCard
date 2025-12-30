@@ -5,6 +5,7 @@ import com.punchard.api.dto.UpdateUserRequest;
 import com.punchard.api.dto.UserResponse;
 import com.punchard.api.exception.DuplicateUserException;
 import com.punchard.api.exception.UserNotFoundException;
+import com.punchard.api.model.Role;
 import com.punchard.api.model.User;
 import com.punchard.api.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -89,6 +90,21 @@ public class UserService {
             throw new UserNotFoundException(id);
         }
         userRepository.deleteById(id);
+    }
+
+    /**
+     * Promotes a user to ADMIN role.
+     *
+     * @param userId the ID of the user to promote
+     * @return the updated user
+     */
+    public UserResponse promoteToAdmin(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        user.setRole(Role.ADMIN);
+        User updatedUser = userRepository.save(user);
+        return UserResponse.fromEntity(updatedUser);
     }
 }
 

@@ -78,5 +78,15 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Promote a user to ADMIN role - ADMIN only.
+     */
+    @PostMapping("/{id}/promote")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponse> promoteUser(@PathVariable UUID id) {
+        UserResponse user = userService.promoteToAdmin(id);
+        return ResponseEntity.ok(user);
+    }
 }
 

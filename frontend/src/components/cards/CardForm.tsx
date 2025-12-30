@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CreatePunchCardRequest, CardStyle, PunchShape } from '../../types';
+import type { CreatePunchCardRequest, CardStyle, PunchShape, User } from '../../types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
@@ -8,6 +8,7 @@ interface CardFormProps {
   onSubmit: (data: CreatePunchCardRequest) => void;
   loading?: boolean;
   submitLabel?: string;
+  users?: User[];
 }
 
 const PUNCH_SHAPES: { value: PunchShape; label: string }[] = [
@@ -32,17 +33,21 @@ export function CardForm({
   onSubmit,
   loading,
   submitLabel = 'Create Card',
+  users = [],
 }: CardFormProps) {
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [totalSlots, setTotalSlots] = useState(initialData?.totalSlots || 10);
   const [reward, setReward] = useState(initialData?.reward || '');
+  const [ownerId, setOwnerId] = useState<string | undefined>(initialData?.ownerId);
   const [cardStyle, setCardStyle] = useState<Partial<CardStyle>>({
     backgroundColor: '#3B82F6',
     textColor: '#FFFFFF',
     punchShape: 'CIRCLE',
     ...initialData?.cardStyle,
   });
+
+  const isEditing = !!initialData?.title;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,11 +57,35 @@ export function CardForm({
       totalSlots,
       reward,
       cardStyle,
+      ownerId: ownerId || undefined,
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {!isEditing && users.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Create Card For User
+          </label>
+          <select
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            value={ownerId || ''}
+            onChange={(e) => setOwnerId(e.target.value || undefined)}
+          >
+            <option value="">Select a user...</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.username} ({user.email})
+              </option>
+            ))}
+          </select>
+          <p className="text-sm text-gray-500 mt-1">
+            Leave empty to create the card for yourself
+          </p>
+        </div>
+      )}
+
       <Input
         label="Card Title"
         value={title}

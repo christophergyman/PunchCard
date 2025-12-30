@@ -77,7 +77,7 @@ class UserControllerAuthTest {
         @WithMockUser(roles = "ADMIN")
         void createUser_shouldReturn201_whenAdmin() throws Exception {
             CreateUserRequest request = new CreateUserRequest("newuser", "password123", "new@example.com");
-            UserResponse response = new UserResponse(UUID.randomUUID(), "newuser", "new@example.com", NOW, NOW);
+            UserResponse response = new UserResponse(UUID.randomUUID(), "newuser", "new@example.com", "USER", NOW, NOW);
 
             when(userService.createUser(any())).thenReturn(response);
 
@@ -92,7 +92,7 @@ class UserControllerAuthTest {
         @DisplayName("should return 201 when using UserPrincipal with ADMIN role")
         void createUser_shouldReturn201_whenAdminPrincipal() throws Exception {
             CreateUserRequest request = new CreateUserRequest("newuser", "password123", "new@example.com");
-            UserResponse response = new UserResponse(UUID.randomUUID(), "newuser", "new@example.com", NOW, NOW);
+            UserResponse response = new UserResponse(UUID.randomUUID(), "newuser", "new@example.com", "USER", NOW, NOW);
 
             when(userService.createUser(any())).thenReturn(response);
 
@@ -126,7 +126,7 @@ class UserControllerAuthTest {
         @DisplayName("should return 200 when authenticated user views any profile")
         @WithMockUser
         void getUserById_shouldReturn200_whenAuthenticated() throws Exception {
-            UserResponse response = new UserResponse(OTHER_USER_ID, "otheruser", "other@example.com", NOW, NOW);
+            UserResponse response = new UserResponse(OTHER_USER_ID, "otheruser", "other@example.com", "USER", NOW, NOW);
             when(userService.getUserById(OTHER_USER_ID)).thenReturn(response);
 
             mockMvc.perform(get("/api/users/{id}", OTHER_USER_ID))
@@ -143,7 +143,7 @@ class UserControllerAuthTest {
         @DisplayName("should return 200 when user updates their own profile (owner)")
         void updateUser_shouldReturn200_whenOwner() throws Exception {
             UpdateUserRequest request = new UpdateUserRequest("updateduser", null, null);
-            UserResponse response = new UserResponse(USER_ID, "updateduser", "test@example.com", NOW, NOW);
+            UserResponse response = new UserResponse(USER_ID, "updateduser", "test@example.com", "USER", NOW, NOW);
 
             // Mock the security service to return true for owner check
             when(userSecurityService.isOwner(eq(USER_ID), any())).thenReturn(true);
@@ -162,7 +162,7 @@ class UserControllerAuthTest {
         @WithMockUser(roles = "ADMIN")
         void updateUser_shouldReturn200_whenAdmin() throws Exception {
             UpdateUserRequest request = new UpdateUserRequest("adminupdate", null, null);
-            UserResponse response = new UserResponse(OTHER_USER_ID, "adminupdate", "other@example.com", NOW, NOW);
+            UserResponse response = new UserResponse(OTHER_USER_ID, "adminupdate", "other@example.com", "ADMIN", NOW, NOW);
 
             when(userService.updateUser(eq(OTHER_USER_ID), any())).thenReturn(response);
 

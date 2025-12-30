@@ -1,5 +1,8 @@
+import { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCard, useCreateCard, useUpdateCard } from '../hooks/useCards';
+import { useUsers } from '../hooks/useUsers';
+import { useAuthStore } from '../stores/authStore';
 import { Layout } from '../components/layout/Layout';
 import { CardForm } from '../components/cards/CardForm';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
@@ -9,10 +12,19 @@ export function CardEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isEditing = !!id;
+  const isAdmin = useAuthStore((state) => state.isAdmin);
 
   const { data: card, isLoading } = useCard(id || '');
+  const { data: usersData } = useUsers();
   const createMutation = useCreateCard();
   const updateMutation = useUpdateCard();
+
+  // Redirect non-admin users trying to create or edit cards
+  useEffect(() => {
+    if (!isAdmin) {
+      navigate('/dashboard');
+    }
+  }, [isAdmin, navigate]);
 
   const handleSubmit = async (data: CreatePunchCardRequest) => {
     if (isEditing) {
@@ -78,6 +90,7 @@ export function CardEditor() {
             onSubmit={handleSubmit}
             loading={createMutation.isPending || updateMutation.isPending}
             submitLabel={isEditing ? 'Save Changes' : 'Create Card'}
+            users={usersData?.content}
           />
         </div>
       </div>

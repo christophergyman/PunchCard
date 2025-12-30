@@ -28,14 +28,16 @@ public class PunchCardController {
     }
 
     /**
-     * Create a new punch card - any authenticated user.
+     * Create a new punch card - ADMIN only.
+     * Admin can specify the target user via ownerId, or defaults to admin's own ID.
      */
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PunchCardResponse> createCard(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreatePunchCardRequest request) {
-        PunchCardResponse card = punchCardService.createCard(principal.getId(), request);
+        UUID targetOwnerId = request.ownerId() != null ? request.ownerId() : principal.getId();
+        PunchCardResponse card = punchCardService.createCard(targetOwnerId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(card);
     }
 
@@ -52,20 +54,20 @@ public class PunchCardController {
     }
 
     /**
-     * Get a specific punch card by ID - any authenticated user can view.
+     * Get a specific punch card by ID - owner or admin only.
      */
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@cardSecurityService.isAdminOrCardOwner(#id, authentication)")
     public ResponseEntity<PunchCardResponse> getCardById(@PathVariable UUID id) {
         PunchCardResponse card = punchCardService.getCardById(id);
         return ResponseEntity.ok(card);
     }
 
     /**
-     * Update a punch card - owner only.
+     * Update a punch card - ADMIN only.
      */
     @PutMapping("/{id}")
-    @PreAuthorize("@cardSecurityService.isCardOwner(#id, authentication)")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PunchCardResponse> updateCard(
             @PathVariable UUID id,
             @Valid @RequestBody UpdatePunchCardRequest request) {
@@ -74,10 +76,10 @@ public class PunchCardController {
     }
 
     /**
-     * Delete a punch card - owner only.
+     * Delete a punch card - ADMIN only.
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("@cardSecurityService.isCardOwner(#id, authentication)")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCard(@PathVariable UUID id) {
         punchCardService.deleteCard(id);
         return ResponseEntity.noContent().build();

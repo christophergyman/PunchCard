@@ -47,7 +47,7 @@ class UserControllerTest {
     private static final Instant NOW = Instant.now();
 
     private UserResponse createTestUserResponse() {
-        return new UserResponse(TEST_USER_ID, "testuser", "test@example.com", NOW, NOW);
+        return new UserResponse(TEST_USER_ID, "testuser", "test@example.com", "USER", NOW, NOW);
     }
 
     // ==================== CREATE USER TESTS ====================
@@ -158,8 +158,8 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_shouldReturn200_withPaginatedResults() throws Exception {
-        UserResponse user1 = new UserResponse(TEST_USER_ID, "user1", "user1@example.com", NOW, NOW);
-        UserResponse user2 = new UserResponse(UUID.randomUUID(), "user2", "user2@example.com", NOW, NOW);
+        UserResponse user1 = new UserResponse(TEST_USER_ID, "user1", "user1@example.com", "USER", NOW, NOW);
+        UserResponse user2 = new UserResponse(UUID.randomUUID(), "user2", "user2@example.com", "USER", NOW, NOW);
         Page<UserResponse> page = new PageImpl<>(List.of(user1, user2));
 
         when(userService.getAllUsers(any(Pageable.class))).thenReturn(page);
@@ -234,7 +234,7 @@ class UserControllerTest {
     @Test
     void updateUser_shouldReturn200_whenValidRequest() throws Exception {
         UpdateUserRequest request = new UpdateUserRequest("updateduser", null, null);
-        UserResponse response = new UserResponse(TEST_USER_ID, "updateduser", "test@example.com", NOW, NOW);
+        UserResponse response = new UserResponse(TEST_USER_ID, "updateduser", "test@example.com", "USER", NOW, NOW);
 
         when(userService.updateUser(eq(TEST_USER_ID), any(UpdateUserRequest.class))).thenReturn(response);
 

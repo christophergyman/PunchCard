@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useCards } from '../hooks/useCards';
+import { useAuthStore } from '../stores/authStore';
 import { Layout } from '../components/layout/Layout';
 import { CardPreview } from '../components/cards/CardPreview';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
@@ -7,6 +8,7 @@ import { Button } from '../components/ui/Button';
 
 export function Dashboard() {
   const { data, isLoading, error } = useCards();
+  const isAdmin = useAuthStore((state) => state.isAdmin);
 
   return (
     <Layout>
@@ -15,12 +17,16 @@ export function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">My Cards</h1>
             <p className="text-gray-600 mt-1">
-              Manage your punch cards and track your progress
+              {isAdmin
+                ? 'Create and manage punch cards for users'
+                : 'View your punch cards and track your progress'}
             </p>
           </div>
-          <Link to="/cards/new">
-            <Button>+ New Card</Button>
-          </Link>
+          {isAdmin && (
+            <Link to="/cards/new">
+              <Button>+ New Card</Button>
+            </Link>
+          )}
         </div>
 
         {isLoading && (
@@ -42,11 +48,15 @@ export function Dashboard() {
               No cards yet
             </h2>
             <p className="text-gray-600 mb-6">
-              Create your first punch card to get started!
+              {isAdmin
+                ? 'Create a punch card for a user to get started!'
+                : 'No punch cards have been assigned to you yet.'}
             </p>
-            <Link to="/cards/new">
-              <Button>Create Your First Card</Button>
-            </Link>
+            {isAdmin && (
+              <Link to="/cards/new">
+                <Button>Create Your First Card</Button>
+              </Link>
+            )}
           </div>
         )}
 

@@ -35,6 +35,7 @@ export interface CreatePunchCardRequest {
   totalSlots: number;
   reward: string;
   cardStyle?: Partial<CardStyle>;
+  ownerId?: string;
 }
 
 export interface UpdatePunchCardRequest {

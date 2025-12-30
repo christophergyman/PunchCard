@@ -3,6 +3,8 @@ package com.punchard.api.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
+import java.util.UUID;
+
 public record CreatePunchCardRequest(
         @NotBlank(message = "Title is required")
         @Size(max = 100, message = "Title must be at most 100 characters")
@@ -21,5 +23,7 @@ public record CreatePunchCardRequest(
         String reward,
 
         @Valid
-        CardStyleDto cardStyle
+        CardStyleDto cardStyle,
+
+        UUID ownerId
 ) {}

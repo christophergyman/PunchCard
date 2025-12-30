@@ -1,5 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCard, usePunchCard, useDeleteCard } from '../hooks/useCards';
+import { useAuthStore } from '../stores/authStore';
 import { Layout } from '../components/layout/Layout';
 import { Scene } from '../three/Scene';
 import { PunchCard3D } from '../three/PunchCard3D';
@@ -12,14 +13,17 @@ export function CardView() {
   const { data: card, isLoading, error } = useCard(id!);
   const punchMutation = usePunchCard();
   const deleteMutation = useDeleteCard();
+  const isAdmin = useAuthStore((state) => state.isAdmin);
 
   const handlePunch = (position: number) => {
+    if (!isAdmin) return;
     if (card && !card.punches.some((p) => p.position === position)) {
       punchMutation.mutate({ cardId: card.id, position });
     }
   };
 
   const handleDelete = async () => {
+    if (!isAdmin) return;
     if (window.confirm('Are you sure you want to delete this card?')) {
       await deleteMutation.mutateAsync(id!);
       navigate('/dashboard');
@@ -67,18 +71,20 @@ export function CardView() {
               <p className="text-gray-600 mt-1">{card.description}</p>
             )}
           </div>
-          <div className="flex gap-2">
-            <Link to={`/cards/${id}/edit`}>
-              <Button variant="secondary">Edit</Button>
-            </Link>
-            <Button
-              variant="danger"
-              onClick={handleDelete}
-              loading={deleteMutation.isPending}
-            >
-              Delete
-            </Button>
-          </div>
+          {isAdmin && (
+            <div className="flex gap-2">
+              <Link to={`/cards/${id}/edit`}>
+                <Button variant="secondary">Edit</Button>
+              </Link>
+              <Button
+                variant="danger"
+                onClick={handleDelete}
+                loading={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -88,13 +94,15 @@ export function CardView() {
               <Scene>
                 <PunchCard3D
                   card={card}
-                  onPunch={handlePunch}
-                  disabled={punchMutation.isPending}
+                  onPunch={isAdmin ? handlePunch : undefined}
+                  disabled={!isAdmin || punchMutation.isPending}
                 />
               </Scene>
             </div>
             <p className="text-sm text-gray-500 mt-2 text-center">
-              Click and drag to rotate • Click a slot to punch
+              {isAdmin
+                ? 'Click and drag to rotate • Click a slot to punch'
+                : 'Click and drag to rotate • View your punch card progress'}
             </p>
           </div>
 

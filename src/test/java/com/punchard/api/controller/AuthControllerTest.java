@@ -62,7 +62,7 @@ class AuthControllerTest {
         @DisplayName("should return 201 and user response when registration is successful")
         void register_shouldReturn201_whenSuccessful() throws Exception {
             CreateUserRequest request = new CreateUserRequest("testuser", "password123", "test@example.com");
-            UserResponse response = new UserResponse(TEST_USER_ID, "testuser", "test@example.com", NOW, NOW);
+            UserResponse response = new UserResponse(TEST_USER_ID, "testuser", "test@example.com", "USER", NOW, NOW);
 
             when(authService.register(any(CreateUserRequest.class))).thenReturn(response);
 
@@ -151,7 +151,7 @@ class AuthControllerTest {
         @DisplayName("should return 200 and JWT token when credentials are valid")
         void login_shouldReturn200_whenCredentialsValid() throws Exception {
             LoginRequest request = new LoginRequest("testuser", "password123");
-            UserResponse user = new UserResponse(TEST_USER_ID, "testuser", "test@example.com", NOW, NOW);
+            UserResponse user = new UserResponse(TEST_USER_ID, "testuser", "test@example.com", "USER", NOW, NOW);
             AuthResponse response = new AuthResponse("jwt.token.here", user);
 
             when(authService.login(any(LoginRequest.class))).thenReturn(response);

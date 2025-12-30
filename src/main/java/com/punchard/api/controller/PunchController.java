@@ -25,10 +25,10 @@ public class PunchController {
     }
 
     /**
-     * Add a punch to a card - card owner only.
+     * Add a punch to a card - ADMIN only.
      */
     @PostMapping
-    @PreAuthorize("@cardSecurityService.isCardOwner(#cardId, authentication)")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PunchResponse> addPunch(
             @PathVariable UUID cardId,
             @AuthenticationPrincipal UserPrincipal principal,
@@ -38,10 +38,10 @@ public class PunchController {
     }
 
     /**
-     * Get all punches for a card - any authenticated user can view.
+     * Get all punches for a card - owner or admin only.
      */
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("@cardSecurityService.isAdminOrCardOwner(#cardId, authentication)")
     public ResponseEntity<List<PunchResponse>> getPunches(@PathVariable UUID cardId) {
         List<PunchResponse> punches = punchService.getPunchesByCard(cardId);
         return ResponseEntity.ok(punches);

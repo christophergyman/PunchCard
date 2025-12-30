@@ -9,6 +9,7 @@ public record UserResponse(
         UUID id,
         String username,
         String email,
+        String role,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -17,6 +18,7 @@ public record UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getRole().name(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );
