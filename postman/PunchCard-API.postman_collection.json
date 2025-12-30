@@ -8,7 +8,7 @@
 	"item": [
 		{
 			"name": "Auth",
-			"description": "Authentication endpoints (public - no token required)",
+			"description": "Authentication endpoints",
 			"item": [
 				{
 					"name": "Register",
@@ -127,6 +127,58 @@
 							"path": ["api", "auth", "login"]
 						},
 						"description": "Authenticate with username and password to receive a JWT token.\n\nThe token is automatically saved to the environment variable `token` for use in protected endpoints."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has user id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});",
+									"",
+									"pm.test(\"Response has username\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('username');",
+									"});",
+									"",
+									"pm.test(\"Response has email\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('email');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "me"]
+						},
+						"description": "Get the currently authenticated user's information.\n\nRequires a valid JWT token."
 					},
 					"response": []
 				}
@@ -417,6 +469,381 @@
 							"path": ["api", "users", "{{user_id}}"]
 						},
 						"description": "Delete a user. Requires owner or ADMIN role.\n\n**Warning:** This action cannot be undone."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Punch Cards",
+			"description": "Punch card management endpoints (protected - JWT token required)",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{token}}",
+						"type": "string"
+					}
+				]
+			},
+			"item": [
+				{
+					"name": "Create Card",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has card id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});",
+									"",
+									"pm.test(\"Response has required fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('ownerId');",
+									"    pm.expect(jsonData).to.have.property('title');",
+									"    pm.expect(jsonData).to.have.property('totalSlots');",
+									"    pm.expect(jsonData).to.have.property('currentPunches');",
+									"    pm.expect(jsonData).to.have.property('reward');",
+									"});",
+									"",
+									"pm.test(\"Response has timestamps\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('createdAt');",
+									"    pm.expect(jsonData).to.have.property('updatedAt');",
+									"});",
+									"",
+									"// Save card_id for later use",
+									"if (pm.response.code === 201) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.environment.set(\"card_id\", jsonData.id);",
+									"    console.log(\"Card ID saved to environment\");",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Coffee Rewards\",\n    \"description\": \"Buy 10 coffees, get 1 free!\",\n    \"totalSlots\": 10,\n    \"reward\": \"Free Coffee\",\n    \"cardStyle\": {\n        \"backgroundColor\": \"#8B4513\",\n        \"textColor\": \"#FFFFFF\",\n        \"punchShape\": \"CIRCLE\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cards",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cards"]
+						},
+						"description": "Create a new punch card.\n\n**Request Body:**\n- `title` (required): max 100 characters\n- `description` (optional): max 500 characters\n- `totalSlots` (required): 1-20\n- `reward` (required): max 255 characters\n- `cardStyle` (optional): styling options\n  - `backgroundColor`: hex color (e.g., #FF5733)\n  - `textColor`: hex color\n  - `texture`: optional texture name\n  - `punchShape`: CIRCLE, STAR, HEART, or CUSTOM"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Cards",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is paginated\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('content');",
+									"    pm.expect(jsonData).to.have.property('totalElements');",
+									"    pm.expect(jsonData).to.have.property('totalPages');",
+									"    pm.expect(jsonData).to.have.property('size');",
+									"    pm.expect(jsonData).to.have.property('number');",
+									"});",
+									"",
+									"pm.test(\"Content is an array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.content).to.be.an('array');",
+									"});",
+									"",
+									"// Save first card_id if available",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.content && jsonData.content.length > 0) {",
+									"        pm.environment.set(\"card_id\", jsonData.content[0].id);",
+									"        console.log(\"First card ID saved to environment\");",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cards?page=0&size=20",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cards"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0",
+									"description": "Page number (0-indexed)"
+								},
+								{
+									"key": "size",
+									"value": "20",
+									"description": "Page size (default: 20)"
+								}
+							]
+						},
+						"description": "Get all punch cards owned by the authenticated user.\n\n**Query Parameters:**\n- `page` (optional): Page number (0-indexed, default: 0)\n- `size` (optional): Page size (default: 20)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Card by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has card id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});",
+									"",
+									"pm.test(\"Response has required fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('ownerId');",
+									"    pm.expect(jsonData).to.have.property('title');",
+									"    pm.expect(jsonData).to.have.property('totalSlots');",
+									"    pm.expect(jsonData).to.have.property('currentPunches');",
+									"    pm.expect(jsonData).to.have.property('reward');",
+									"    pm.expect(jsonData).to.have.property('punches');",
+									"});",
+									"",
+									"pm.test(\"Response has timestamps\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('createdAt');",
+									"    pm.expect(jsonData).to.have.property('updatedAt');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cards/{{card_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cards", "{{card_id}}"]
+						},
+						"description": "Get a specific punch card by ID.\n\nUses the `card_id` environment variable (auto-populated after creating a card or listing cards)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Card",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has card id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});",
+									"",
+									"pm.test(\"Response has updated fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('title');",
+									"    pm.expect(jsonData).to.have.property('updatedAt');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Premium Coffee Rewards\",\n    \"description\": \"Updated description\",\n    \"reward\": \"Free Premium Coffee\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cards/{{card_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cards", "{{card_id}}"]
+						},
+						"description": "Update a punch card. Only the card owner can update.\n\n**Request Body (all fields optional):**\n- `title`: max 100 characters\n- `description`: max 500 characters\n- `reward`: max 255 characters\n- `cardStyle`: styling options"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Card",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204 No Content\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});",
+									"",
+									"pm.test(\"Response body is empty\", function () {",
+									"    pm.expect(pm.response.text()).to.be.empty;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cards/{{card_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cards", "{{card_id}}"]
+						},
+						"description": "Delete a punch card. Only the card owner can delete.\n\n**Warning:** This action cannot be undone."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Punches",
+			"description": "Punch operations on punch cards (protected - JWT token required)",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{token}}",
+						"type": "string"
+					}
+				]
+			},
+			"item": [
+				{
+					"name": "Add Punch",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has punch id\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"});",
+									"",
+									"pm.test(\"Response has required fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('cardId');",
+									"    pm.expect(jsonData).to.have.property('punchedBy');",
+									"    pm.expect(jsonData).to.have.property('position');",
+									"    pm.expect(jsonData).to.have.property('punchedAt');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"position\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/cards/{{card_id}}/punches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cards", "{{card_id}}", "punches"]
+						},
+						"description": "Add a punch to a card. Only the card owner can add punches.\n\n**Request Body:**\n- `position` (required): Position number (must be at least 1)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Punches",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is an array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Punches have required fields\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.length > 0) {",
+									"        pm.expect(jsonData[0]).to.have.property('id');",
+									"        pm.expect(jsonData[0]).to.have.property('cardId');",
+									"        pm.expect(jsonData[0]).to.have.property('punchedBy');",
+									"        pm.expect(jsonData[0]).to.have.property('position');",
+									"        pm.expect(jsonData[0]).to.have.property('punchedAt');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cards/{{card_id}}/punches",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cards", "{{card_id}}", "punches"]
+						},
+						"description": "Get all punches for a specific card. Any authenticated user can view."
 					},
 					"response": []
 				}
