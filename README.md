@@ -1,8 +1,43 @@
 # PunchCard
 
-A full-stack punch card loyalty system with a Spring Boot 4.0 backend and React/Three.js frontend featuring interactive 3D punch cards.
+A full-stack punch card loyalty system that lets users create and manage virtual punch cards with interactive 3D visualization. Built with Spring Boot 4.0 on the backend and React with Three.js on the frontend.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a high-level system overview.
+
+## Features
+
+- **User Authentication** - Secure JWT-based authentication with role-based access control (USER/ADMIN)
+- **Punch Card Management** - Create, edit, and delete customizable punch cards
+- **Interactive 3D Cards** - Beautiful 3D punch card visualization using Three.js
+- **Customizable Styles** - Personalize cards with colors, textures, and punch shapes (circle, star, heart)
+- **Progress Tracking** - Track punches toward rewards with visual indicators
+- **RESTful API** - Complete REST API with comprehensive documentation
+- **Responsive Design** - Modern UI with Tailwind CSS
+
+## Tech Stack
+
+### Backend
+- **Spring Boot 4.0.1** - Modern Java framework
+- **Spring Security** - JWT authentication and authorization
+- **Spring Data JPA** - Database abstraction layer
+- **PostgreSQL** - Production database
+- **H2** - In-memory database for development
+- **Lombok** - Reduces boilerplate code
+- **JJWT 0.12.6** - JWT token handling
+- **Java 21** - Latest LTS version
+
+### Frontend
+- **React 19.2** - UI library
+- **TypeScript 5.9** - Type-safe JavaScript
+- **Vite 7.2** - Fast build tool
+- **Three.js / React Three Fiber** - 3D visualization
+- **React Three Drei** - Three.js helpers
+- **Zustand 5.0** - State management
+- **TanStack Query 5.90** - Server state management
+- **React Router 7.11** - Client-side routing
+- **Tailwind CSS 4.1** - Utility-first styling
+- **Axios** - HTTP client
+- **Framer Motion** - Animations
 
 ## Prerequisites
 
@@ -106,6 +141,42 @@ cd frontend && bun install && bun dev
 ```
 
 > **Note:** The application requires `JWT_SECRET` to be set when not using the dev profile. See [AUTHENTICATION.md](docs/AUTHENTICATION.md) for details.
+
+## Project Structure
+
+```
+PunchCard/
+├── src/                          # Backend source code
+│   ├── main/java/com/punchard/api/
+│   │   ├── config/               # Security and app configuration
+│   │   ├── controller/           # REST API controllers
+│   │   ├── dto/                  # Data transfer objects
+│   │   ├── exception/            # Custom exceptions and handlers
+│   │   ├── model/                # JPA entities (User, PunchCard, Punch)
+│   │   ├── repository/           # Spring Data repositories
+│   │   ├── security/             # JWT and auth services
+│   │   └── service/              # Business logic services
+│   └── test/                     # Backend unit and integration tests
+├── frontend/                     # React frontend application
+│   └── src/
+│       ├── api/                  # API client and hooks
+│       ├── components/           # Reusable UI components
+│       │   ├── auth/             # Authentication components
+│       │   ├── cards/            # Punch card components
+│       │   ├── layout/           # Layout components
+│       │   └── ui/               # Generic UI elements
+│       ├── hooks/                # Custom React hooks
+│       ├── pages/                # Page components (Dashboard, CardView, etc.)
+│       ├── stores/               # Zustand state stores
+│       ├── three/                # Three.js 3D components
+│       ├── types/                # TypeScript type definitions
+│       └── utils/                # Utility functions
+├── docs/                         # Detailed documentation
+├── postman/                      # Postman collection for API testing
+├── build.gradle                  # Gradle build configuration
+├── docker-compose.yml            # PostgreSQL container setup
+└── run.sh                        # One-command startup script
+```
 
 ## Documentation
 
@@ -256,28 +327,23 @@ docker-compose down
 
 # Clean build artifacts
 ./gradlew clean
+
+# Frontend commands
+cd frontend && bun install    # Install dependencies
+cd frontend && bun dev        # Start dev server
+cd frontend && bun run build  # Production build
+cd frontend && bun run lint   # Run linter
 ```
 
-## Tech Stack
+### Frontend Development
 
-### Backend
-- Spring Boot 4.0.1
-- Spring Security (JWT authentication)
-- Spring Data JPA
-- PostgreSQL / H2 (dev)
-- Lombok
-- JJWT (JWT library)
+The frontend uses Vite with a proxy configuration that forwards `/api` requests to the backend at `localhost:8080`. This allows seamless development without CORS issues.
 
-### Frontend
-- React 19.2
-- TypeScript 5.9
-- Vite 7.2
-- Three.js / React Three Fiber (3D visualization)
-- Zustand (state management)
-- TanStack Query (server state)
-- Tailwind CSS 4.1
-- Axios
+Environment variables can be configured in `frontend/.env`:
+```
+VITE_API_BASE_URL=http://localhost:8080
+```
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+MIT License - See [LICENSE](LICENSE) for details.

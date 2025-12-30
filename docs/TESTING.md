@@ -6,6 +6,7 @@ Complete guide to testing the PunchCard API.
 
 ## Table of Contents
 
+- [Test Frameworks and Dependencies](#test-frameworks-and-dependencies)
 - [Running Tests](#running-tests)
   - [Run All Tests](#run-all-tests)
   - [Run Specific Test Class](#run-specific-test-class)
@@ -42,6 +43,39 @@ Complete guide to testing the PunchCard API.
   - [Running Coverage Reports](#running-coverage-reports)
 - [Troubleshooting](#troubleshooting)
 - [Related Documentation](#related-documentation)
+
+---
+
+## Test Frameworks and Dependencies
+
+The project uses the following test frameworks and libraries, configured in `build.gradle`:
+
+### Core Test Dependencies
+
+| Dependency | Purpose |
+|------------|---------|
+| `spring-boot-starter-test` | Core Spring Boot testing support (includes JUnit 5, AssertJ, Mockito, Hamcrest) |
+| `spring-boot-starter-webmvc-test` | MockMvc support for testing web layer |
+| `spring-security-test` | Security testing utilities (`@WithMockUser`, `SecurityMockMvcRequestPostProcessors`) |
+| `junit-platform-launcher` | JUnit 5 platform for test execution |
+| `jackson-databind` | JSON serialization/deserialization for tests |
+| `jackson-datatype-jsr310` | Java 8 date/time support for Jackson |
+
+### Test Framework Versions
+
+The project uses Spring Boot 4.0.1 with the following test stack:
+- **JUnit 5** (Jupiter) - Test framework
+- **Mockito** - Mocking framework (via `@MockitoBean` annotation)
+- **AssertJ** - Fluent assertions library
+- **H2 Database** - In-memory database for integration tests
+
+### Gradle Test Configuration
+
+```groovy
+tasks.named('test') {
+    useJUnitPlatform()
+}
+```
 
 ---
 
@@ -99,25 +133,23 @@ Tests are organized to mirror the main source structure:
 ```
 src/test/java/com/punchard/api/
 ├── config/
-│   ├── TestSecurityConfig.java          # Permits all for unit tests
-│   └── SecurityTestConfig.java          # Enforces security for integration tests
+│   ├── TestSecurityConfig.java           # Test config for unit tests (provides beans, security bypassed)
+│   └── SecurityTestConfig.java           # Test config that enforces authentication
 ├── controller/
-│   ├── AuthControllerTest.java          # Authentication endpoint tests
-│   ├── UserControllerTest.java          # User endpoint tests (unit)
-│   ├── UserControllerAuthTest.java      # User authorization tests
-│   ├── PunchCardControllerTest.java     # Punch card endpoint tests (unit)
-│   ├── PunchCardControllerAuthTest.java # Punch card authorization tests
-│   └── HelloControllerTest.java         # Hello endpoint tests
+│   ├── AuthControllerTest.java           # Authentication endpoint tests
+│   ├── UserControllerTest.java           # User endpoint tests (unit)
+│   ├── UserControllerAuthTest.java       # User authorization tests
+│   └── HelloControllerTest.java          # Hello endpoint tests
 ├── repository/
-│   ├── UserRepositoryTest.java          # User database tests
-│   ├── PunchCardRepositoryTest.java     # Punch card database tests
-│   └── PunchRepositoryTest.java         # Punch database tests
+│   └── UserRepositoryTest.java           # User database tests
 ├── security/
 │   ├── CustomUserDetailsServiceTest.java # UserDetailsService tests
-│   ├── JwtServiceTest.java              # JWT token generation/validation tests
-│   ├── CardSecurityServiceTest.java     # Card authorization tests
-│   └── TestJwtUtils.java                # Test utilities for JWT tokens
-└── PunchCardApplicationTests.java       # Application context tests
+│   ├── JwtServiceTest.java               # JWT token generation/validation tests
+│   └── TestJwtUtils.java                 # Test utilities for JWT tokens
+└── PunchCardApplicationTests.java        # Application context tests
+
+src/test/resources/
+└── application.properties                # Test-specific configuration
 ```
 
 ### Test Types
@@ -129,13 +161,13 @@ Test individual components in isolation with mocked dependencies.
 **Characteristics:**
 - Fast execution
 - No database access
-- Mocked dependencies
+- Mocked dependencies using `@MockitoBean`
 - Test single class/method
 
 **Examples:**
-- `JwtServiceTest` - Tests JWT service logic
-- `CustomUserDetailsServiceTest` - Tests user loading logic
-- `UserControllerTest` - Controller tests with mocked service
+- `JwtServiceTest` - Tests JWT service logic with no Spring context
+- `CustomUserDetailsServiceTest` - Tests user loading logic with mocked repository
+- `UserControllerTest` - Controller tests with mocked service layer
 
 #### Integration Tests
 
@@ -143,14 +175,13 @@ Test components working together with real dependencies.
 
 **Characteristics:**
 - Slower execution
-- May use in-memory database (H2)
+- Uses in-memory H2 database
 - Real dependencies (or minimal mocking)
 - Test component interactions
 
 **Examples:**
-- `UserRepositoryTest` - Tests database operations
-- `UserControllerAuthTest` - Tests security integration
-- `AuthControllerTest` - Tests authentication flow
+- `UserRepositoryTest` - Tests database operations with real H2
+- `PunchCardApplicationTests` - Tests application context loads correctly
 
 ---
 
@@ -165,30 +196,45 @@ Tests database operations using Spring Data JPA repositories.
 **Key Features:**
 - Uses `@SpringBootTest` for full context
 - Uses in-memory H2 database
-- Tests CRUD operations
-- Tests custom query methods
+- Uses `@Transactional` for automatic rollback after each test
+- Tests CRUD operations and custom query methods
+
+**Test Coverage:**
+- Default role assignment (USER)
+- Role persistence (USER and ADMIN)
+- `findByUsername` query method
+- Empty result handling
 
 **Example:**
 ```java
 @SpringBootTest
 @Transactional
 class UserRepositoryTest {
-    
+
     @Autowired
     private UserRepository userRepository;
-    
+
+    private User testUser;
+
+    @BeforeEach
+    void setUp() {
+        userRepository.deleteAll();
+        testUser = User.builder()
+                .username("testuser")
+                .email("test@example.com")
+                .password("hashedpassword")
+                .build();
+    }
+
     @Test
-    void findByUsername_shouldReturnUser_whenExists() {
-        User user = User.builder()
-            .username("testuser")
-            .email("test@example.com")
-            .password("hashed")
-            .build();
-        userRepository.save(user);
-        
-        Optional<User> found = userRepository.findByUsername("testuser");
-        
-        assertThat(found).isPresent();
+    @DisplayName("findByUsername should return user when exists")
+    void findByUsernameShouldReturnUserWhenExists() {
+        userRepository.save(testUser);
+
+        Optional<User> foundUser = userRepository.findByUsername("testuser");
+
+        assertThat(foundUser).isPresent();
+        assertThat(foundUser.get().getUsername()).isEqualTo("testuser");
     }
 }
 ```
@@ -199,29 +245,46 @@ class UserRepositoryTest {
 
 **File:** `src/test/java/com/punchard/api/security/JwtServiceTest.java`
 
-Tests JWT token generation, validation, and expiration.
+Tests JWT token generation, validation, and expiration. This is a pure unit test without Spring context.
 
 **Test Coverage:**
-- Token generation with correct claims
-- Token validation
-- Expired token handling
-- Malformed token handling
-- Token with wrong secret rejection
+- Token generation with correct claims (username, userId, role)
+- Token validation for valid tokens
+- Handling of malformed, null, and empty tokens
+- Token rejection with wrong secret
+- Token expiration detection
+- Constructor validation (secret length, null checks)
+- Different tokens for different users
 
 **Example:**
 ```java
 class JwtServiceTest {
-    
+
+    private static final String TEST_SECRET = "test-secret-key-for-jwt-testing-must-be-at-least-32-characters-long";
+    private static final long TEST_EXPIRATION = 28800000L;
+
+    private JwtService jwtService;
+    private User testUser;
+
+    @BeforeEach
+    void setUp() {
+        jwtService = new JwtService(TEST_SECRET, TEST_EXPIRATION);
+        testUser = User.builder()
+                .id(UUID.randomUUID())
+                .username("testuser")
+                .email("test@example.com")
+                .password("hashedpassword")
+                .role(Role.USER)
+                .build();
+    }
+
     @Test
-    void generateToken_shouldIncludeCorrectClaims() {
+    @DisplayName("generateToken should include correct username in token")
+    void generateToken_shouldIncludeCorrectUsername() {
         String token = jwtService.generateToken(testUser);
-        
-        assertThat(jwtService.extractUsername(token))
-            .isEqualTo("testuser");
-        assertThat(jwtService.extractUserId(token))
-            .isEqualTo(testUser.getId());
-        assertThat(jwtService.extractRole(token))
-            .isEqualTo("USER");
+
+        String username = jwtService.extractUsername(token);
+        assertThat(username).isEqualTo("testuser");
     }
 }
 ```
@@ -230,13 +293,38 @@ class JwtServiceTest {
 
 **File:** `src/test/java/com/punchard/api/security/CustomUserDetailsServiceTest.java`
 
-Tests user loading for Spring Security authentication.
+Tests user loading for Spring Security authentication using Mockito extensions.
 
 **Test Coverage:**
-- Loading user by username
-- Handling non-existent users
-- Correct authorities/roles
-- UserPrincipal creation
+- Loading user by username returns correct `UserPrincipal`
+- Correct authorities for USER and ADMIN roles
+- `UsernameNotFoundException` for non-existent users
+- UserPrincipal exposes user ID, email, and role
+- Account status flags (non-expired, non-locked, enabled)
+
+**Example:**
+```java
+@ExtendWith(MockitoExtension.class)
+class CustomUserDetailsServiceTest {
+
+    @Mock
+    private UserRepository userRepository;
+
+    @InjectMocks
+    private CustomUserDetailsService userDetailsService;
+
+    @Test
+    @DisplayName("loadUserByUsername should return UserPrincipal when user exists")
+    void loadUserByUsername_shouldReturnUserPrincipal_whenUserExists() {
+        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
+
+        UserDetails userDetails = userDetailsService.loadUserByUsername("testuser");
+
+        assertThat(userDetails).isNotNull();
+        assertThat(userDetails.getUsername()).isEqualTo("testuser");
+    }
+}
+```
 
 ### Controller Tests
 
@@ -244,20 +332,21 @@ Tests user loading for Spring Security authentication.
 
 **File:** `src/test/java/com/punchard/api/controller/AuthControllerTest.java`
 
-Tests authentication endpoints (register, login).
+Tests authentication endpoints (register, login) with mocked services.
 
 **Test Coverage:**
-- Successful registration
-- Registration validation errors
-- Duplicate username/email handling
-- Successful login
-- Invalid credentials
-- Login validation errors
+- Successful registration (201 response)
+- Registration validation errors (blank username, invalid email, short password)
+- Duplicate username/email handling (409 response)
+- Successful login (200 response with JWT token)
+- Invalid credentials (401 response)
+- Login validation errors (blank username/password)
 
 **Configuration:**
-- Uses `@WebMvcTest` for lightweight controller testing
-- Mocks `AuthService`
-- Uses `@AutoConfigureMockMvc(addFilters = false)` to bypass security
+- Uses `@WebMvcTest(AuthController.class)` for lightweight controller testing
+- Uses `@AutoConfigureMockMvc(addFilters = false)` to bypass security filters
+- Mocks `AuthService`, `UserService`, and `JwtAuthenticationFilter`
+- Imports `TestSecurityConfig` and `GlobalExceptionHandler`
 
 **Example:**
 ```java
@@ -265,13 +354,40 @@ Tests authentication endpoints (register, login).
 @AutoConfigureMockMvc(addFilters = false)
 @Import({TestSecurityConfig.class, GlobalExceptionHandler.class})
 class AuthControllerTest {
-    
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @MockitoBean
     private AuthService authService;
-    
-    @Test
-    void register_shouldReturn201_whenSuccessful() {
-        // Test implementation
+
+    @MockitoBean
+    private UserService userService;
+
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Nested
+    @DisplayName("POST /api/auth/register")
+    class RegisterTests {
+
+        @Test
+        @DisplayName("should return 201 and user response when registration is successful")
+        void register_shouldReturn201_whenSuccessful() throws Exception {
+            CreateUserRequest request = new CreateUserRequest("testuser", "password123", "test@example.com");
+            UserResponse response = new UserResponse(TEST_USER_ID, "testuser", "test@example.com", "USER", NOW, NOW);
+
+            when(authService.register(any(CreateUserRequest.class))).thenReturn(response);
+
+            mockMvc.perform(post("/api/auth/register")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.username").value("testuser"));
+        }
     }
 }
 ```
@@ -283,290 +399,105 @@ class AuthControllerTest {
 Unit tests for user endpoints with mocked service.
 
 **Test Coverage:**
-- CRUD operations
-- Validation errors
-- Error handling
-- Pagination
+- Create user (201 response, validation errors, duplicate handling)
+- Get all users (pagination support, empty list handling)
+- Get user by ID (200 response, 404 for not found)
+- Update user (200 response, 404 not found, 409 duplicate, validation errors)
+- Delete user (204 response, 404 for not found)
+
+**Configuration:**
+- Uses `@WebMvcTest(UserController.class)`
+- Mocks `UserService`
+- Imports `TestSecurityConfig` and `GlobalExceptionHandler`
 
 #### User Controller Authorization Tests
 
 **File:** `src/test/java/com/punchard/api/controller/UserControllerAuthTest.java`
 
-Integration tests for authorization and role-based access.
+Tests for authorization and role-based access control.
 
 **Test Coverage:**
-- Admin-only endpoints
-- Owner-only operations
-- Role-based access control
-- 401/403 error scenarios
+- Admin-only user creation (201 with admin role)
+- Authenticated user can list users (200)
+- Authenticated user can view any profile (200)
+- Owner can update their own profile (200)
+- Admin can update any profile (200)
+- Owner can delete their own account (204)
+- Admin can delete any account (204)
 
 **Configuration:**
-- Uses `@SpringBootTest` for full security context
-- Uses `@WithMockUser` for role-based testing
-- Tests actual security enforcement
+- Uses `@WebMvcTest` with `@AutoConfigureMockMvc(addFilters = false)`
+- Uses `@WithMockUser(roles = "ADMIN")` for role-based testing
+- Uses `user()` post processor with `UserPrincipal` for owner testing
+- Mocks `UserService`, `JwtAuthenticationFilter`, and `UserSecurityService`
 
 **Example:**
 ```java
-@SpringBootTest
-@AutoConfigureMockMvc
-class UserControllerAuthTest {
-
-    @Test
-    @WithMockUser(roles = "ADMIN")
-    void createUser_shouldReturn201_whenAdmin() {
-        // Test admin access
-    }
-
-    @Test
-    void updateUser_shouldReturn403_whenNotOwner() {
-        // Test ownership check
-    }
-}
-```
-
-#### Punch Card Controller Tests
-
-**File:** `src/test/java/com/punchard/api/controller/PunchCardControllerTest.java`
-
-Unit tests for punch card endpoints with mocked service.
-
-**Test Coverage:**
-- Create punch card
-- List user's cards (pagination)
-- Get card by ID
-- Update card
-- Delete card
-- Add punch to card
-- List punches
-- Validation errors
-- Error handling
-
-**Configuration:**
-- Uses `@WebMvcTest` for lightweight controller testing
-- Mocks `PunchCardService`, `PunchService`, `CardSecurityService`
-- Uses `@AutoConfigureMockMvc(addFilters = false)` to bypass security
-
-**Example:**
-```java
-@WebMvcTest(PunchCardController.class)
+@WebMvcTest(UserController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({TestSecurityConfig.class, GlobalExceptionHandler.class})
-class PunchCardControllerTest {
+class UserControllerAuthTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
-    private PunchCardService cardService;
+    private UserService userService;
 
     @MockitoBean
-    private PunchService punchService;
+    private UserSecurityService userSecurityService;
 
-    @MockitoBean
-    private CardSecurityService cardSecurityService;
-
-    private UUID testCardId;
-    private PunchCardResponse testCardResponse;
+    private UserPrincipal regularUser;
+    private UserPrincipal adminUser;
 
     @BeforeEach
     void setUp() {
-        testCardId = UUID.randomUUID();
-        testCardResponse = PunchCardResponse.builder()
-            .id(testCardId)
-            .name("Coffee Rewards")
-            .totalPunches(10)
-            .currentPunches(0)
-            .isComplete(false)
-            .build();
+        regularUser = new UserPrincipal(USER_ID, "testuser", Role.USER);
+        adminUser = new UserPrincipal(USER_ID, "adminuser", Role.ADMIN);
     }
 
     @Test
-    void createCard_shouldReturn201_whenValidRequest() throws Exception {
-        when(cardService.createCard(any(), any())).thenReturn(testCardResponse);
+    @DisplayName("should return 200 when user updates their own profile (owner)")
+    void updateUser_shouldReturn200_whenOwner() throws Exception {
+        when(userSecurityService.isOwner(eq(USER_ID), any())).thenReturn(true);
+        when(userService.updateUser(eq(USER_ID), any())).thenReturn(response);
 
-        mockMvc.perform(post("/api/cards")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                        "name": "Coffee Rewards",
-                        "totalPunches": 10
-                    }
-                    """))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.name").value("Coffee Rewards"))
-            .andExpect(jsonPath("$.totalPunches").value(10));
-    }
-
-    @Test
-    void createCard_shouldReturn400_whenNameMissing() throws Exception {
-        mockMvc.perform(post("/api/cards")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                        "totalPunches": 10
-                    }
-                    """))
-            .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void getCard_shouldReturn404_whenNotFound() throws Exception {
-        when(cardService.getCard(any()))
-            .thenThrow(new PunchCardNotFoundException(testCardId));
-
-        mockMvc.perform(get("/api/cards/{id}", testCardId))
-            .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void addPunch_shouldReturn409_whenDuplicatePosition() throws Exception {
-        doThrow(new DuplicatePunchException(5))
-            .when(punchService).addPunch(any(), any(), any());
-
-        mockMvc.perform(post("/api/cards/{cardId}/punches", testCardId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                        "position": 5
-                    }
-                    """))
-            .andExpect(status().isConflict());
+        mockMvc.perform(put("/api/users/{id}", USER_ID)
+                        .with(user(regularUser))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk());
     }
 }
 ```
 
-#### Punch Card Controller Authorization Tests
+#### Hello Controller Test
 
-**File:** `src/test/java/com/punchard/api/controller/PunchCardControllerAuthTest.java`
+**File:** `src/test/java/com/punchard/api/controller/HelloControllerTest.java`
 
-Integration tests for punch card authorization and owner-only operations.
+Simple test for the hello endpoint.
 
 **Test Coverage:**
-- Owner-only update operations
-- Owner-only delete operations
-- Owner-only punch operations
-- Admin override for all operations
-- 403 Forbidden scenarios
-- CardSecurityService integration
-
-**Configuration:**
-- Uses `@SpringBootTest` for full security context
-- Uses `@WithMockUser` and custom `UserPrincipal` for testing
-- Tests actual security enforcement
+- GET `/api/hello` returns "Hello World"
 
 **Example:**
 ```java
-@SpringBootTest
-@AutoConfigureMockMvc
-class PunchCardControllerAuthTest {
+@WebMvcTest(HelloController.class)
+@AutoConfigureMockMvc(addFilters = false)
+@Import(TestSecurityConfig.class)
+class HelloControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private PunchCardRepository cardRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    private User owner;
-    private User otherUser;
-    private PunchCard testCard;
-
-    @BeforeEach
-    void setUp() {
-        cardRepository.deleteAll();
-        userRepository.deleteAll();
-
-        owner = userRepository.save(User.builder()
-            .username("owner")
-            .email("owner@example.com")
-            .password("hashed")
-            .build());
-
-        otherUser = userRepository.save(User.builder()
-            .username("other")
-            .email("other@example.com")
-            .password("hashed")
-            .build());
-
-        testCard = cardRepository.save(PunchCard.builder()
-            .name("Test Card")
-            .totalPunches(10)
-            .owner(owner)
-            .build());
-    }
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
-    void updateCard_shouldReturn200_whenOwner() throws Exception {
-        UserPrincipal ownerPrincipal = new UserPrincipal(
-            owner.getId(), owner.getUsername(), Role.USER);
-
-        mockMvc.perform(put("/api/cards/{id}", testCard.getId())
-                .with(user(ownerPrincipal))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                        "name": "Updated Card"
-                    }
-                    """))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("Updated Card"));
-    }
-
-    @Test
-    void updateCard_shouldReturn403_whenNotOwner() throws Exception {
-        UserPrincipal otherPrincipal = new UserPrincipal(
-            otherUser.getId(), otherUser.getUsername(), Role.USER);
-
-        mockMvc.perform(put("/api/cards/{id}", testCard.getId())
-                .with(user(otherPrincipal))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                        "name": "Updated Card"
-                    }
-                    """))
-            .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @WithMockUser(roles = "ADMIN")
-    void updateCard_shouldReturn200_whenAdmin() throws Exception {
-        mockMvc.perform(put("/api/cards/{id}", testCard.getId())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                        "name": "Admin Updated Card"
-                    }
-                    """))
-            .andExpect(status().isOk());
-    }
-
-    @Test
-    void addPunch_shouldReturn403_whenNotOwner() throws Exception {
-        UserPrincipal otherPrincipal = new UserPrincipal(
-            otherUser.getId(), otherUser.getUsername(), Role.USER);
-
-        mockMvc.perform(post("/api/cards/{cardId}/punches", testCard.getId())
-                .with(user(otherPrincipal))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("""
-                    {
-                        "position": 1
-                    }
-                    """))
-            .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void deleteCard_shouldReturn403_whenNotOwner() throws Exception {
-        UserPrincipal otherPrincipal = new UserPrincipal(
-            otherUser.getId(), otherUser.getUsername(), Role.USER);
-
-        mockMvc.perform(delete("/api/cards/{id}", testCard.getId())
-                .with(user(otherPrincipal)))
-            .andExpect(status().isForbidden());
+    void hello_shouldReturnHelloWorld() throws Exception {
+        mockMvc.perform(get("/api/hello"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Hello World"));
     }
 }
 ```
@@ -581,7 +512,13 @@ class PunchCardControllerAuthTest {
 
 **File:** `src/test/java/com/punchard/api/security/TestJwtUtils.java`
 
-Utility class for generating test JWT tokens.
+Utility class for generating test JWT tokens. Uses the same secret and expiration as test configuration.
+
+**Available Methods:**
+- `generateToken(UUID userId, String username, Role role)` - Generate token with specific role
+- `generateUserToken(UUID userId, String username)` - Generate token for USER role
+- `generateAdminToken(UUID userId, String username)` - Generate token for ADMIN role
+- `bearerToken(String token)` - Create "Bearer {token}" header value
 
 **Usage:**
 ```java
@@ -593,19 +530,20 @@ String adminToken = TestJwtUtils.generateAdminToken(userId, "admin");
 
 // Create Bearer header value
 String header = TestJwtUtils.bearerToken(token);
+// Returns: "Bearer eyJ..."
 ```
 
 ### Mocking with @MockitoBean
 
-Use `@MockitoBean` to mock Spring beans in `@WebMvcTest`:
+Use `@MockitoBean` (from `org.springframework.test.context.bean.override.mockito`) to mock Spring beans in `@WebMvcTest`:
 
 ```java
 @WebMvcTest(SomeController.class)
 class SomeControllerTest {
-    
+
     @MockitoBean
     private SomeService someService;
-    
+
     @Test
     void testMethod() {
         when(someService.doSomething()).thenReturn(result);
@@ -614,29 +552,52 @@ class SomeControllerTest {
 }
 ```
 
+**Note:** In Spring Boot 4.x, the annotation is `@MockitoBean` from the `bean.override.mockito` package. For pure unit tests without Spring context, use `@Mock` from Mockito with `@ExtendWith(MockitoExtension.class)`.
+
 ### Security Test Configuration
 
 #### TestSecurityConfig
 
 **File:** `src/test/java/com/punchard/api/config/TestSecurityConfig.java`
 
-Configuration that permits all requests. Used for unit tests that mock the service layer.
+Configuration that provides common test beans. Security is bypassed via `@AutoConfigureMockMvc(addFilters = false)` on tests.
+
+**Beans Provided:**
+- `PasswordEncoder` - BCryptPasswordEncoder for password operations
+- `ObjectMapper` - Jackson mapper with Java 8 time module support
+- `JwtService` - Pre-configured JWT service for token operations
 
 **When to use:**
 - Controller unit tests with mocked services
 - Tests that don't need security enforcement
 - Fast, isolated tests
 
+**Example:**
+```java
+@WebMvcTest(SomeController.class)
+@AutoConfigureMockMvc(addFilters = false)  // Bypasses security filters
+@Import(TestSecurityConfig.class)
+class SomeControllerTest {
+    // ...
+}
+```
+
 #### SecurityTestConfig
 
 **File:** `src/test/java/com/punchard/api/config/SecurityTestConfig.java`
 
-Configuration that enforces authentication. Used for integration tests.
+Configuration that enforces authentication with method security enabled.
+
+**Features:**
+- `@EnableWebSecurity` - Enables web security
+- `@EnableMethodSecurity` - Enables `@PreAuthorize` annotations
+- Stateless session management
+- All requests require authentication
 
 **When to use:**
 - Testing `@PreAuthorize` annotations
 - Testing security filter chain
-- Integration tests with real security
+- Integration tests with real security enforcement
 
 ### Using @WithMockUser
 
@@ -723,18 +684,32 @@ assertThatThrownBy(() -> service.doSomething())
 Test-specific configuration:
 
 ```properties
+spring.application.name=PunchCard
+
 # H2 in-memory database for testing
-spring.datasource.url=jdbc:h2:mem:testdb
+spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
 spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
 
 # JPA settings for testing
 spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
 spring.jpa.hibernate.ddl-auto=create-drop
+spring.jpa.show-sql=true
+
+# Disable H2 console in tests
+spring.h2.console.enabled=false
 
 # JWT Configuration for tests
 jwt.secret=test-secret-key-for-jwt-testing-must-be-at-least-32-characters-long
 jwt.expiration=28800000
 ```
+
+**Key Configuration Notes:**
+- `DB_CLOSE_DELAY=-1` keeps the database alive between tests
+- `DB_CLOSE_ON_EXIT=FALSE` prevents premature database closure
+- `create-drop` recreates schema for each test run
+- `show-sql=true` enables SQL logging for debugging
 
 ### Test Isolation
 
@@ -836,12 +811,28 @@ Each test should be independent:
 
 The project includes tests for:
 
-- ✅ Repository layer (UserRepository, PunchCardRepository, PunchRepository)
-- ✅ Service layer (JWT, UserDetails, CardSecurityService)
-- ✅ Controller layer (Auth, User, PunchCard, Hello)
-- ✅ Security/Authorization (role-based, owner-based)
-- ✅ Error handling (including punch card specific errors)
-- ✅ Validation
+**Repository Layer:**
+- UserRepository (role persistence, findByUsername queries)
+
+**Service/Security Layer:**
+- JwtService (token generation, validation, expiration, claims extraction)
+- CustomUserDetailsService (user loading, role authorities, UserPrincipal creation)
+
+**Controller Layer:**
+- AuthController (registration, login, validation, error handling)
+- UserController (CRUD operations, pagination, validation)
+- UserController Authorization (role-based access, owner operations)
+- HelloController (basic endpoint)
+
+**Application Context:**
+- PunchCardApplicationTests (context loads successfully)
+
+**Areas Without Tests (Opportunities for Improvement):**
+- PunchCard and Punch repositories
+- PunchCard and Punch controllers
+- CardSecurityService
+- AuthService
+- UserService
 
 ### Running Coverage Reports
 
@@ -887,6 +878,7 @@ View report at: `build/reports/jacoco/test/html/index.html`
 - Use `@AutoConfigureMockMvc(addFilters = false)` for unit tests
 - Use `@WithMockUser` for integration tests
 - Check test security configuration
+- Ensure `JwtAuthenticationFilter` is mocked with `@MockitoBean`
 
 ### Database Issues in Tests
 
@@ -894,17 +886,46 @@ View report at: `build/reports/jacoco/test/html/index.html`
 
 **Solution:**
 - Use `@Transactional` for automatic rollback
-- Clean up in `@BeforeEach`
-- Use unique test data
+- Clean up in `@BeforeEach` with `repository.deleteAll()`
+- Use unique test data (e.g., `UUID.randomUUID()`)
 
 ### Mock Not Working
 
 **Problem:** Mocked service not being used
 
 **Solution:**
-- Ensure `@MockitoBean` is used (not `@Mock`)
+- Ensure `@MockitoBean` is used (not `@Mock`) for Spring context tests
+- For pure unit tests, use `@Mock` with `@ExtendWith(MockitoExtension.class)`
 - Check test configuration imports
-- Verify mock setup in test method
+- Verify mock setup with `when()` before calling the method
+
+### Missing Beans in WebMvcTest
+
+**Problem:** Tests fail due to missing beans (e.g., JwtService, PasswordEncoder)
+
+**Solution:**
+- Import `TestSecurityConfig` which provides common beans
+- Mock any additional dependencies with `@MockitoBean`
+
+### Tests Running Slowly
+
+**Problem:** Tests take too long to execute
+
+**Solution:**
+- Use `@WebMvcTest` instead of `@SpringBootTest` for controller tests
+- Avoid `@DirtiesContext` unless absolutely necessary
+- Use mocks instead of real database operations where possible
+
+---
+
+## Frontend Testing
+
+The frontend (React/TypeScript with Vite) currently does not have a testing setup configured. The `package.json` does not include test frameworks like Vitest or Jest.
+
+**Recommended Setup for Future:**
+- **Vitest** - Fast unit test framework for Vite projects
+- **React Testing Library** - For testing React components
+- **MSW (Mock Service Worker)** - For mocking API calls
 
 ---
 

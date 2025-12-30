@@ -1,6 +1,6 @@
 # PunchCard API Reference
 
-Complete API reference for the PunchCard social media backend.
+Complete API reference for the PunchCard backend.
 
 ---
 
@@ -19,14 +19,15 @@ Complete API reference for the PunchCard social media backend.
     - [Get User by ID](#get-user-by-id)
     - [Update User](#update-user)
     - [Delete User](#delete-user)
+    - [Promote User to Admin](#promote-user-to-admin)
   - [Punch Card Endpoints](#punch-card-endpoints)
-    - [Create Punch Card](#create-punch-card)
+    - [Create Punch Card (Admin Only)](#create-punch-card-admin-only)
     - [List User's Cards](#list-users-cards)
     - [Get Card by ID](#get-card-by-id)
-    - [Update Card](#update-card)
-    - [Delete Card](#delete-card)
+    - [Update Card (Admin Only)](#update-card-admin-only)
+    - [Delete Card (Admin Only)](#delete-card-admin-only)
   - [Punch Endpoints](#punch-endpoints)
-    - [Add Punch](#add-punch)
+    - [Add Punch (Admin Only)](#add-punch-admin-only)
     - [List Punches](#list-punches)
   - [Hello Endpoint](#hello-endpoint)
 - [Data Types](#data-types)
@@ -56,6 +57,10 @@ Most endpoints require authentication via JWT tokens. See [AUTHENTICATION.md](AU
 1. Register a user: `POST /api/auth/register`
 2. Login: `POST /api/auth/login` (returns JWT token)
 3. Include token in requests: `Authorization: Bearer <token>`
+
+**Roles:**
+- `USER` - Default role for registered users. Can view their own cards and punches.
+- `ADMIN` - Administrative role. Can create/update/delete cards and punches for any user, promote users.
 
 ---
 
@@ -92,6 +97,7 @@ Create a new user account.
   "id": "123e4567-e89b-12d3-a456-426614174000",
   "username": "johndoe",
   "email": "john@example.com",
+  "role": "USER",
   "createdAt": "2024-12-22T10:30:00Z",
   "updatedAt": "2024-12-22T10:30:00Z"
 }
@@ -161,6 +167,7 @@ Authenticate and receive a JWT token.
     "id": "123e4567-e89b-12d3-a456-426614174000",
     "username": "johndoe",
     "email": "john@example.com",
+    "role": "USER",
     "createdAt": "2024-12-22T10:30:00Z",
     "updatedAt": "2024-12-22T10:30:00Z"
   }
@@ -215,6 +222,7 @@ Get the currently authenticated user's information.
   "id": "123e4567-e89b-12d3-a456-426614174000",
   "username": "johndoe",
   "email": "john@example.com",
+  "role": "USER",
   "createdAt": "2024-12-22T10:30:00Z",
   "updatedAt": "2024-12-22T10:30:00Z"
 }
@@ -273,6 +281,7 @@ Create a new user account. Admin-only endpoint. Regular users should use `/api/a
   "id": "223e4567-e89b-12d3-a456-426614174001",
   "username": "newuser",
   "email": "newuser@example.com",
+  "role": "USER",
   "createdAt": "2024-12-22T10:35:00Z",
   "updatedAt": "2024-12-22T10:35:00Z"
 }
@@ -319,6 +328,7 @@ Get a paginated list of all users.
       "id": "123e4567-e89b-12d3-a456-426614174000",
       "username": "johndoe",
       "email": "john@example.com",
+      "role": "USER",
       "createdAt": "2024-12-22T10:30:00Z",
       "updatedAt": "2024-12-22T10:30:00Z"
     },
@@ -326,6 +336,7 @@ Get a paginated list of all users.
       "id": "223e4567-e89b-12d3-a456-426614174001",
       "username": "janedoe",
       "email": "jane@example.com",
+      "role": "ADMIN",
       "createdAt": "2024-12-22T10:31:00Z",
       "updatedAt": "2024-12-22T10:31:00Z"
     }
@@ -383,6 +394,7 @@ Get a specific user by their ID.
   "id": "123e4567-e89b-12d3-a456-426614174000",
   "username": "johndoe",
   "email": "john@example.com",
+  "role": "USER",
   "createdAt": "2024-12-22T10:30:00Z",
   "updatedAt": "2024-12-22T10:30:00Z"
 }
@@ -446,6 +458,7 @@ All fields are optional. Only include fields you want to update.
   "id": "123e4567-e89b-12d3-a456-426614174000",
   "username": "newusername",
   "email": "newemail@example.com",
+  "role": "USER",
   "createdAt": "2024-12-22T10:30:00Z",
   "updatedAt": "2024-12-22T11:00:00Z"
 }
@@ -528,53 +541,114 @@ if (response.status === 204) {
 
 ---
 
+#### Promote User to Admin
+
+Promote a user to the ADMIN role. Only admins can perform this action.
+
+**Endpoint:** `POST /api/users/{id}/promote`
+
+**Authentication:** Required (ADMIN role)
+
+**Path Parameters:**
+- `id` (UUID): User ID to promote
+
+**Response:** `200 OK`
+
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174000",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "role": "ADMIN",
+  "createdAt": "2024-12-22T10:30:00Z",
+  "updatedAt": "2024-12-22T11:00:00Z"
+}
+```
+
+**Error Responses:**
+- `401 Unauthorized` - Not authenticated
+- `403 Forbidden` - Not an admin
+- `404 Not Found` - User not found
+
+**Example:**
+```bash
+curl -X POST http://localhost:8080/api/users/123e4567-e89b-12d3-a456-426614174000/promote \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+**JavaScript Example:**
+```javascript
+const userId = '123e4567-e89b-12d3-a456-426614174000';
+const response = await fetch(`http://localhost:8080/api/users/${userId}/promote`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${adminToken}`
+  }
+});
+
+const promotedUser = await response.json();
+console.log(`User ${promotedUser.username} is now an ${promotedUser.role}`);
+```
+
+---
+
 ### Punch Card Endpoints
 
-#### Create Punch Card
+#### Create Punch Card (Admin Only)
 
-Create a new punch card for the authenticated user.
+Create a new punch card. Admin can optionally specify a target user via `ownerId`, otherwise the card is created for the admin.
 
 **Endpoint:** `POST /api/cards`
 
-**Authentication:** Required (any authenticated user)
+**Authentication:** Required (ADMIN role)
 
 **Request Body:**
 ```json
 {
-  "name": "Coffee Rewards",
+  "title": "Coffee Rewards",
   "description": "Buy 10 coffees, get one free!",
-  "totalPunches": 10,
-  "style": {
+  "totalSlots": 10,
+  "reward": "Free Coffee",
+  "cardStyle": {
     "backgroundColor": "#8B4513",
     "textColor": "#FFFFFF",
+    "texture": null,
     "punchShape": "CIRCLE"
-  }
+  },
+  "ownerId": "123e4567-e89b-12d3-a456-426614174000"
 }
 ```
 
 **Validation Rules:**
-- `name`: Required, 1-100 characters
+- `title`: Required, max 100 characters
 - `description`: Optional, max 500 characters
-- `totalPunches`: Required, 1-50
-- `style`: Optional (defaults applied if not provided)
-- `style.punchShape`: One of `CIRCLE`, `STAR`, `HEART`, `CHECK`, `DIAMOND`
+- `totalSlots`: Required, 1-20
+- `reward`: Required, max 255 characters
+- `cardStyle`: Optional (defaults applied if not provided)
+- `cardStyle.backgroundColor`: Optional, valid hex color (e.g., `#FF5733`)
+- `cardStyle.textColor`: Optional, valid hex color (e.g., `#000000`)
+- `cardStyle.texture`: Optional, string
+- `cardStyle.punchShape`: Optional, one of `CIRCLE`, `STAR`, `HEART`, `CUSTOM`
+- `ownerId`: Optional, UUID of the target user (defaults to admin's ID)
 
 **Response:** `201 Created`
 
 ```json
 {
   "id": "456e7890-e89b-12d3-a456-426614174001",
-  "name": "Coffee Rewards",
+  "ownerId": "123e4567-e89b-12d3-a456-426614174000",
+  "title": "Coffee Rewards",
   "description": "Buy 10 coffees, get one free!",
-  "totalPunches": 10,
+  "totalSlots": 10,
   "currentPunches": 0,
-  "isComplete": false,
-  "style": {
+  "reward": "Free Coffee",
+  "cardStyle": {
     "backgroundColor": "#8B4513",
     "textColor": "#FFFFFF",
+    "texture": null,
     "punchShape": "CIRCLE"
   },
-  "ownerId": "123e4567-e89b-12d3-a456-426614174000",
+  "punches": [],
   "createdAt": "2024-12-22T10:30:00Z",
   "updatedAt": "2024-12-22T10:30:00Z"
 }
@@ -583,21 +657,24 @@ Create a new punch card for the authenticated user.
 **Error Responses:**
 - `400 Bad Request` - Validation errors
 - `401 Unauthorized` - Not authenticated
+- `403 Forbidden` - Not an admin
 
 **Example:**
 ```bash
 curl -X POST http://localhost:8080/api/cards \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
+  -H "Authorization: Bearer <admin-token>" \
   -d '{
-    "name": "Coffee Rewards",
+    "title": "Coffee Rewards",
     "description": "Buy 10 coffees, get one free!",
-    "totalPunches": 10,
-    "style": {
+    "totalSlots": 10,
+    "reward": "Free Coffee",
+    "cardStyle": {
       "backgroundColor": "#8B4513",
       "textColor": "#FFFFFF",
       "punchShape": "CIRCLE"
-    }
+    },
+    "ownerId": "123e4567-e89b-12d3-a456-426614174000"
   }'
 ```
 
@@ -607,17 +684,19 @@ const response = await fetch('http://localhost:8080/api/cards', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${adminToken}`
   },
   body: JSON.stringify({
-    name: 'Coffee Rewards',
+    title: 'Coffee Rewards',
     description: 'Buy 10 coffees, get one free!',
-    totalPunches: 10,
-    style: {
+    totalSlots: 10,
+    reward: 'Free Coffee',
+    cardStyle: {
       backgroundColor: '#8B4513',
       textColor: '#FFFFFF',
       punchShape: 'CIRCLE'
-    }
+    },
+    ownerId: '123e4567-e89b-12d3-a456-426614174000'
   })
 });
 
@@ -645,17 +724,27 @@ Get a paginated list of the authenticated user's punch cards.
   "content": [
     {
       "id": "456e7890-e89b-12d3-a456-426614174001",
-      "name": "Coffee Rewards",
+      "ownerId": "123e4567-e89b-12d3-a456-426614174000",
+      "title": "Coffee Rewards",
       "description": "Buy 10 coffees, get one free!",
-      "totalPunches": 10,
+      "totalSlots": 10,
       "currentPunches": 5,
-      "isComplete": false,
-      "style": {
+      "reward": "Free Coffee",
+      "cardStyle": {
         "backgroundColor": "#8B4513",
         "textColor": "#FFFFFF",
+        "texture": null,
         "punchShape": "CIRCLE"
       },
-      "ownerId": "123e4567-e89b-12d3-a456-426614174000",
+      "punches": [
+        {
+          "id": "789e0123-e89b-12d3-a456-426614174002",
+          "cardId": "456e7890-e89b-12d3-a456-426614174001",
+          "punchedBy": "223e4567-e89b-12d3-a456-426614174001",
+          "position": 1,
+          "punchedAt": "2024-12-22T11:00:00Z"
+        }
+      ],
       "createdAt": "2024-12-22T10:30:00Z",
       "updatedAt": "2024-12-22T11:00:00Z"
     }
@@ -701,7 +790,7 @@ Get a specific punch card by its ID.
 
 **Endpoint:** `GET /api/cards/{id}`
 
-**Authentication:** Required (any authenticated user)
+**Authentication:** Required (card owner or ADMIN role)
 
 **Path Parameters:**
 - `id` (UUID): Punch card ID
@@ -711,17 +800,27 @@ Get a specific punch card by its ID.
 ```json
 {
   "id": "456e7890-e89b-12d3-a456-426614174001",
-  "name": "Coffee Rewards",
+  "ownerId": "123e4567-e89b-12d3-a456-426614174000",
+  "title": "Coffee Rewards",
   "description": "Buy 10 coffees, get one free!",
-  "totalPunches": 10,
+  "totalSlots": 10,
   "currentPunches": 5,
-  "isComplete": false,
-  "style": {
+  "reward": "Free Coffee",
+  "cardStyle": {
     "backgroundColor": "#8B4513",
     "textColor": "#FFFFFF",
+    "texture": null,
     "punchShape": "CIRCLE"
   },
-  "ownerId": "123e4567-e89b-12d3-a456-426614174000",
+  "punches": [
+    {
+      "id": "789e0123-e89b-12d3-a456-426614174002",
+      "cardId": "456e7890-e89b-12d3-a456-426614174001",
+      "punchedBy": "223e4567-e89b-12d3-a456-426614174001",
+      "position": 1,
+      "punchedAt": "2024-12-22T11:00:00Z"
+    }
+  ],
   "createdAt": "2024-12-22T10:30:00Z",
   "updatedAt": "2024-12-22T11:00:00Z"
 }
@@ -729,6 +828,7 @@ Get a specific punch card by its ID.
 
 **Error Responses:**
 - `401 Unauthorized` - Not authenticated
+- `403 Forbidden` - Not the card owner and not an admin
 - `404 Not Found` - Punch card not found
 
 **Example:**
@@ -751,13 +851,13 @@ const card = await response.json();
 
 ---
 
-#### Update Card
+#### Update Card (Admin Only)
 
-Update a punch card's information. Only the card owner can update.
+Update a punch card's information. Only admins can update cards.
 
 **Endpoint:** `PUT /api/cards/{id}`
 
-**Authentication:** Required (owner only)
+**Authentication:** Required (ADMIN role)
 
 **Path Parameters:**
 - `id` (UUID): Punch card ID
@@ -765,9 +865,10 @@ Update a punch card's information. Only the card owner can update.
 **Request Body:**
 ```json
 {
-  "name": "Updated Coffee Rewards",
+  "title": "Updated Coffee Rewards",
   "description": "Buy 10 coffees, get two free!",
-  "style": {
+  "reward": "Two Free Coffees",
+  "cardStyle": {
     "backgroundColor": "#654321",
     "textColor": "#FFFFFF",
     "punchShape": "STAR"
@@ -775,29 +876,32 @@ Update a punch card's information. Only the card owner can update.
 }
 ```
 
-All fields are optional. Only include fields you want to update. Note: `totalPunches` cannot be changed after creation.
+All fields are optional. Only include fields you want to update. Note: `totalSlots` cannot be changed after creation.
 
 **Validation Rules:**
-- `name`: Optional, 1-100 characters (if provided)
+- `title`: Optional, max 100 characters (if provided)
 - `description`: Optional, max 500 characters (if provided)
-- `style`: Optional (if provided)
+- `reward`: Optional, max 255 characters (if provided)
+- `cardStyle`: Optional (if provided)
 
 **Response:** `200 OK`
 
 ```json
 {
   "id": "456e7890-e89b-12d3-a456-426614174001",
-  "name": "Updated Coffee Rewards",
+  "ownerId": "123e4567-e89b-12d3-a456-426614174000",
+  "title": "Updated Coffee Rewards",
   "description": "Buy 10 coffees, get two free!",
-  "totalPunches": 10,
+  "totalSlots": 10,
   "currentPunches": 5,
-  "isComplete": false,
-  "style": {
+  "reward": "Two Free Coffees",
+  "cardStyle": {
     "backgroundColor": "#654321",
     "textColor": "#FFFFFF",
+    "texture": null,
     "punchShape": "STAR"
   },
-  "ownerId": "123e4567-e89b-12d3-a456-426614174000",
+  "punches": [],
   "createdAt": "2024-12-22T10:30:00Z",
   "updatedAt": "2024-12-22T12:00:00Z"
 }
@@ -806,16 +910,16 @@ All fields are optional. Only include fields you want to update. Note: `totalPun
 **Error Responses:**
 - `400 Bad Request` - Validation errors
 - `401 Unauthorized` - Not authenticated
-- `403 Forbidden` - Not the card owner
+- `403 Forbidden` - Not an admin
 - `404 Not Found` - Punch card not found
 
 **Example:**
 ```bash
 curl -X PUT http://localhost:8080/api/cards/456e7890-e89b-12d3-a456-426614174001 \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
+  -H "Authorization: Bearer <admin-token>" \
   -d '{
-    "name": "Updated Coffee Rewards"
+    "title": "Updated Coffee Rewards"
   }'
 ```
 
@@ -826,10 +930,10 @@ const response = await fetch(`http://localhost:8080/api/cards/${cardId}`, {
   method: 'PUT',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${adminToken}`
   },
   body: JSON.stringify({
-    name: 'Updated Coffee Rewards'
+    title: 'Updated Coffee Rewards'
   })
 });
 
@@ -838,13 +942,13 @@ const updatedCard = await response.json();
 
 ---
 
-#### Delete Card
+#### Delete Card (Admin Only)
 
-Delete a punch card. Only the card owner can delete.
+Delete a punch card. Only admins can delete cards.
 
 **Endpoint:** `DELETE /api/cards/{id}`
 
-**Authentication:** Required (owner only)
+**Authentication:** Required (ADMIN role)
 
 **Path Parameters:**
 - `id` (UUID): Punch card ID
@@ -853,13 +957,13 @@ Delete a punch card. Only the card owner can delete.
 
 **Error Responses:**
 - `401 Unauthorized` - Not authenticated
-- `403 Forbidden` - Not the card owner
+- `403 Forbidden` - Not an admin
 - `404 Not Found` - Punch card not found
 
 **Example:**
 ```bash
 curl -X DELETE http://localhost:8080/api/cards/456e7890-e89b-12d3-a456-426614174001 \
-  -H "Authorization: Bearer <token>"
+  -H "Authorization: Bearer <admin-token>"
 ```
 
 **JavaScript Example:**
@@ -868,7 +972,7 @@ const cardId = '456e7890-e89b-12d3-a456-426614174001';
 const response = await fetch(`http://localhost:8080/api/cards/${cardId}`, {
   method: 'DELETE',
   headers: {
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${adminToken}`
   }
 });
 
@@ -881,13 +985,13 @@ if (response.status === 204) {
 
 ### Punch Endpoints
 
-#### Add Punch
+#### Add Punch (Admin Only)
 
-Add a punch to a punch card. Only the card owner can add punches.
+Add a punch to a punch card. Only admins can add punches.
 
 **Endpoint:** `POST /api/cards/{cardId}/punches`
 
-**Authentication:** Required (owner only)
+**Authentication:** Required (ADMIN role)
 
 **Path Parameters:**
 - `cardId` (UUID): Punch card ID
@@ -895,14 +999,12 @@ Add a punch to a punch card. Only the card owner can add punches.
 **Request Body:**
 ```json
 {
-  "position": 1,
-  "note": "Morning espresso"
+  "position": 1
 }
 ```
 
 **Validation Rules:**
-- `position`: Required, must be between 1 and card's `totalPunches`, must not already be punched
-- `note`: Optional, max 200 characters
+- `position`: Required, must be at least 1 and at most the card's `totalSlots`, must not already be punched
 
 **Response:** `201 Created`
 
@@ -910,8 +1012,8 @@ Add a punch to a punch card. Only the card owner can add punches.
 {
   "id": "789e0123-e89b-12d3-a456-426614174002",
   "cardId": "456e7890-e89b-12d3-a456-426614174001",
+  "punchedBy": "223e4567-e89b-12d3-a456-426614174001",
   "position": 1,
-  "note": "Morning espresso",
   "punchedAt": "2024-12-22T11:00:00Z"
 }
 ```
@@ -919,7 +1021,7 @@ Add a punch to a punch card. Only the card owner can add punches.
 **Error Responses:**
 - `400 Bad Request` - Validation errors or invalid punch position
 - `401 Unauthorized` - Not authenticated
-- `403 Forbidden` - Not the card owner
+- `403 Forbidden` - Not an admin
 - `404 Not Found` - Punch card not found
 - `409 Conflict` - Position already punched (duplicate punch)
 
@@ -927,10 +1029,9 @@ Add a punch to a punch card. Only the card owner can add punches.
 ```bash
 curl -X POST http://localhost:8080/api/cards/456e7890-e89b-12d3-a456-426614174001/punches \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <token>" \
+  -H "Authorization: Bearer <admin-token>" \
   -d '{
-    "position": 1,
-    "note": "Morning espresso"
+    "position": 1
   }'
 ```
 
@@ -941,11 +1042,10 @@ const response = await fetch(`http://localhost:8080/api/cards/${cardId}/punches`
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${adminToken}`
   },
   body: JSON.stringify({
-    position: 1,
-    note: 'Morning espresso'
+    position: 1
   })
 });
 
@@ -960,7 +1060,7 @@ Get all punches for a punch card.
 
 **Endpoint:** `GET /api/cards/{cardId}/punches`
 
-**Authentication:** Required (any authenticated user)
+**Authentication:** Required (card owner or ADMIN role)
 
 **Path Parameters:**
 - `cardId` (UUID): Punch card ID
@@ -972,15 +1072,15 @@ Get all punches for a punch card.
   {
     "id": "789e0123-e89b-12d3-a456-426614174002",
     "cardId": "456e7890-e89b-12d3-a456-426614174001",
+    "punchedBy": "223e4567-e89b-12d3-a456-426614174001",
     "position": 1,
-    "note": "Morning espresso",
     "punchedAt": "2024-12-22T11:00:00Z"
   },
   {
     "id": "789e0123-e89b-12d3-a456-426614174003",
     "cardId": "456e7890-e89b-12d3-a456-426614174001",
+    "punchedBy": "223e4567-e89b-12d3-a456-426614174001",
     "position": 2,
-    "note": "Afternoon latte",
     "punchedAt": "2024-12-22T15:00:00Z"
   }
 ]
@@ -988,6 +1088,7 @@ Get all punches for a punch card.
 
 **Error Responses:**
 - `401 Unauthorized` - Not authenticated
+- `403 Forbidden` - Not the card owner and not an admin
 - `404 Not Found` - Punch card not found
 
 **Example:**
@@ -1061,6 +1162,21 @@ Paginated responses follow Spring Data's `Page` format:
 - `first`: Whether this is the first page
 - `last`: Whether this is the last page
 
+### UserResponse
+
+Response object for user operations:
+
+```json
+{
+  "id": "UUID",
+  "username": "string",
+  "email": "string",
+  "role": "USER | ADMIN",
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
 ### PunchCardResponse
 
 Response object for punch card operations:
@@ -1068,13 +1184,14 @@ Response object for punch card operations:
 ```json
 {
   "id": "UUID",
-  "name": "string",
-  "description": "string | null",
-  "totalPunches": "number (1-50)",
-  "currentPunches": "number",
-  "isComplete": "boolean",
-  "style": "CardStyleDto",
   "ownerId": "UUID",
+  "title": "string",
+  "description": "string | null",
+  "totalSlots": "number (1-20)",
+  "currentPunches": "number",
+  "reward": "string",
+  "cardStyle": "CardStyleDto",
+  "punches": "PunchResponse[]",
   "createdAt": "timestamp",
   "updatedAt": "timestamp"
 }
@@ -1088,8 +1205,8 @@ Response object for punch operations:
 {
   "id": "UUID",
   "cardId": "UUID",
-  "position": "number (1-totalPunches)",
-  "note": "string | null",
+  "punchedBy": "UUID",
+  "position": "number (1-totalSlots)",
   "punchedAt": "timestamp"
 }
 ```
@@ -1102,6 +1219,7 @@ Style configuration for punch cards:
 {
   "backgroundColor": "string (hex color, e.g., '#8B4513')",
   "textColor": "string (hex color, e.g., '#FFFFFF')",
+  "texture": "string | null",
   "punchShape": "PunchShape enum"
 }
 ```
@@ -1115,8 +1233,16 @@ Available shapes for punch indicators:
 | `CIRCLE` | Circular punch marker (default) |
 | `STAR` | Star-shaped punch marker |
 | `HEART` | Heart-shaped punch marker |
-| `CHECK` | Checkmark punch marker |
-| `DIAMOND` | Diamond-shaped punch marker |
+| `CUSTOM` | Custom punch marker |
+
+### Role Enum
+
+User roles for authorization:
+
+| Value | Description |
+|-------|-------------|
+| `USER` | Default role for registered users |
+| `ADMIN` | Administrative role with elevated permissions |
 
 ---
 
@@ -1148,7 +1274,7 @@ All error responses follow this format:
 | 401 | Unauthorized | Authentication required or invalid credentials |
 | 403 | Forbidden | Authenticated but insufficient permissions |
 | 404 | Not Found | Resource not found |
-| 409 | Conflict | Resource already exists (duplicate username/email) |
+| 409 | Conflict | Resource already exists (duplicate username/email/punch position) |
 | 500 | Internal Server Error | Server error |
 
 ### Common Error Scenarios
@@ -1313,4 +1439,3 @@ Currently, the API does not implement rate limiting. This is a known limitation 
 - [AUTHENTICATION.md](AUTHENTICATION.md) - Complete authentication guide
 - [TESTING.md](TESTING.md) - Testing documentation
 - [README.md](../README.md) - Project overview and setup
-
