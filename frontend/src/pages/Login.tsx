@@ -20,7 +20,7 @@ export function Login() {
     try {
       await loginMutation.mutateAsync({ username, password });
       navigate('/dashboard');
-    } catch (err) {
+    } catch {
       setError('Invalid username or password');
     }
   };
